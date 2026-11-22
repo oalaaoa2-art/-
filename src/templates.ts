@@ -1,7 +1,23 @@
-import type { Block, BlockType, SiteDoc, Theme } from './types';
+import type { Block, BlockType, Page, SiteDoc, Theme } from './types';
 
 let counter = 0;
 export const uid = (): string => `b${Date.now().toString(36)}${(counter++).toString(36)}`;
+
+export function slugify(name: string): string {
+  const map: Record<string, string> = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'h', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya' };
+  return String(name || '')
+    .toLowerCase()
+    .split('')
+    .map((c) => map[c] ?? c)
+    .join('')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 40);
+}
+
+export function createPage(name: string, slug: string, blocks: Block[] = []): Page {
+  return { id: uid(), name, slug, blocks };
+}
 
 const img = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1400&q=80`;
 
@@ -783,10 +799,12 @@ export const PALETTES: { name: string; bg: string; surface: string; text: string
 ];
 
 export function docFromTemplate(t: Template): SiteDoc {
-  return { name: t.name, theme: { ...t.theme }, blocks: t.blocks(), templateId: t.id };
+  const page = createPage('Главная', 'index', t.blocks());
+  return { name: t.name, theme: { ...t.theme }, pages: [page], current: page.id, templateId: t.id };
 }
 
 export function emptyDoc(): SiteDoc {
+  const page = createPage('Главная', 'index');
   return {
     name: 'Мой сайт',
     theme: {
@@ -801,7 +819,8 @@ export function emptyDoc(): SiteDoc {
       radius: 20,
       maxWidth: 1140,
     },
-    blocks: [],
+    pages: [page],
+    current: page.id,
     templateId: '',
   };
 }

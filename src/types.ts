@@ -11,11 +11,32 @@ export type BlockType =
   | 'contact'
   | 'footer';
 
+// Оформление отдельного блока: размер, форма и фон «окна».
+export type BlockBox = {
+  width?: number; // ширина в % от страницы
+  maxw?: number; // максимальная ширина в px (0 — без ограничения)
+  radius?: number; // скругление углов в px
+  minh?: number; // минимальная высота в px
+  bg?: string; // 'none' | 'surface' | 'accent' | цвет
+  align?: 'left' | 'center' | 'right';
+  shadow?: boolean;
+  padt?: number; // отступ сверху в px
+  padb?: number; // отступ снизу в px
+};
+
 export type Block = {
   id: string;
   type: BlockType;
+  box?: BlockBox;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
+};
+
+export type Page = {
+  id: string;
+  name: string;
+  slug: string;
+  blocks: Block[];
 };
 
 export type Theme = {
@@ -34,7 +55,8 @@ export type Theme = {
 export type SiteDoc = {
   name: string;
   theme: Theme;
-  blocks: Block[];
+  pages: Page[];
+  current: string;
   templateId: string;
 };
 

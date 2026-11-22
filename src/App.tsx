@@ -6,13 +6,15 @@ import {
   STORAGE_KEY,
   TEMPLATES,
   createBlock,
+  createPage,
   docFromTemplate,
   emptyDoc,
+  slugify,
   uid,
   type Template,
 } from './templates';
 import { CATEGORY_LABELS, FONTS, loadAllFonts } from './fonts';
-import type { Block, BlockType, Msg, SiteDoc } from './types';
+import type { Block, BlockBox, BlockType, Msg, Page, SiteDoc } from './types';
 
 /* --------------------------------- helpers -------------------------------- */
 
@@ -29,6 +31,8 @@ function setPath(obj: any, path: string, value: unknown) {
 }
 
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+
+const pageOf = (d: SiteDoc): Page => d.pages.find((p) => p.id === d.current) ?? d.pages[0];
 
 const LABELS: Record<string, string> = {
   brand: 'Название / логотип',
@@ -67,17 +71,42 @@ const LABELS: Record<string, string> = {
 const label = (key: string) => LABELS[key] ?? key;
 const MULTILINE = new Set(['title', 'subtitle', 'text', 'quote', 'address']);
 
+function normalizeDoc(raw: unknown): SiteDoc | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const d = raw as Partial<SiteDoc> & { blocks?: Block[] };
+  if (!d.theme || typeof d.name !== 'string') return null;
+  let pages: Page[] = Array.isArray(d.pages)
+    ? d.pages.filter((p): p is Page => !!p && Array.isArray(p.blocks))
+    : [];
+  if (!pages.length) {
+    if (!Array.isArray(d.blocks)) return null;
+    pages = [{ id: uid(), name: 'Главная', slug: 'index', blocks: d.blocks }];
+  }
+  pages = pages.map((p, i) => ({
+    id: p.id || uid(),
+    name: p.name || `Страница ${i + 1}`,
+    slug: p.slug || slugify(p.name) || `page-${i + 1}`,
+    blocks: Array.isArray(p.blocks) ? p.blocks : [],
+  }));
+  const current = pages.some((p) => p.id === d.current) ? (d.current as string) : pages[0].id;
+  return {
+    name: d.name,
+    theme: d.theme as SiteDoc['theme'],
+    pages,
+    current,
+    templateId: typeof d.templateId === 'string' ? d.templateId : '',
+  };
+}
+
 function loadInitial(): SiteDoc {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as SiteDoc;
-      if (parsed && Array.isArray(parsed.blocks) && parsed.theme && typeof parsed.name === 'string') {
-        return parsed;
-      }
+      const parsed = normalizeDoc(JSON.parse(raw));
+      if (parsed) return parsed;
     }
   } catch {
-    /* повреждённое сохранение — начинаем с шаблона */
+    /* повреждённое сохранение — начинаем с пустой страницы */
   }
   return emptyDoc();
 }
@@ -88,6 +117,15 @@ const DEVICES = [
   { id: 'mobile', label: 'Телефон', width: 414 },
 ] as const;
 type DeviceId = (typeof DEVICES)[number]['id'];
+
+const GRID_TYPES: BlockType[] = ['features', 'gallery', 'stats', 'pricing'];
+
+const uniqueSlug = (base: string, used: Set<string>): string => {
+  let slug = base || 'page';
+  let n = 2;
+  while (used.has(slug)) slug = `${base}-${n++}`;
+  return slug;
+};
 
 /* ---------------------------------- icons --------------------------------- */
 
@@ -172,6 +210,12 @@ const icons = {
       <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
       <circle cx="16" cy="7" r="2" />
       <circle cx="10" cy="17" r="2" />
+    </SVG>
+  ),
+  page: (
+    <SVG>
+      <path d="M6 3h8l4 4v14H6z" />
+      <path d="M14 3v4h4" />
     </SVG>
   ),
 };
@@ -291,6 +335,188 @@ function Field({
   return null;
 }
 
+const numOrZero = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+
+function BoxInspector({
+  block,
+  onPatch,
+  onReset,
+}: {
+  block: Block;
+  onPatch: (path: string, value: unknown) => void;
+  onReset: () => void;
+}) {
+  const box: BlockBox = block.box ?? {};
+  const put = (patch: Partial<BlockBox>) => onPatch('box', { ...box, ...patch });
+  const width = numOrZero(box.width) || 100;
+  const maxw = numOrZero(box.maxw);
+  const radius = numOrZero(box.radius);
+  const minh = numOrZero(box.minh);
+  const bg = box.bg || 'none';
+  const isColor = /^#[0-9a-f]{3,8}$/i.test(bg);
+
+  return (
+    <div className="box-panel">
+      <div className="insp-sub">
+        <span>Форма и размер</span>
+        {block.box && (
+          <button type="button" className="mini" title="Сбросить оформление" onClick={onReset}>
+            {icons.undo}
+          </button>
+        )}
+      </div>
+
+      <label className="range">
+        <span>Ширина блока: {width}%</span>
+        <input
+          type="range"
+          min={30}
+          max={100}
+          step={5}
+          value={width}
+          onChange={(e) => put({ width: Number(e.target.value) })}
+        />
+      </label>
+
+      <div className="box-grid">
+        <label className="fld">
+          <span>Макс. ширина, px</span>
+          <input
+            type="number"
+            min={0}
+            step={20}
+            value={maxw}
+            placeholder="авто"
+            onChange={(e) => put({ maxw: Number(e.target.value) || 0 })}
+          />
+        </label>
+        <label className="fld">
+          <span>Мин. высота, px</span>
+          <input
+            type="number"
+            min={0}
+            step={20}
+            value={minh}
+            placeholder="авто"
+            onChange={(e) => put({ minh: Number(e.target.value) || 0 })}
+          />
+        </label>
+      </div>
+
+      <label className="range">
+        <span>Скругление углов: {radius}px</span>
+        <input
+          type="range"
+          min={0}
+          max={64}
+          value={radius}
+          onChange={(e) => put({ radius: Number(e.target.value) })}
+        />
+      </label>
+
+      <div className="box-row">
+        <span>Прижать</span>
+        <div className="seg mini-seg">
+          {(['left', 'center', 'right'] as const).map((a) => (
+            <button
+              key={a}
+              className={(box.align || 'center') === a ? 'active' : ''}
+              title={a === 'left' ? 'Слева' : a === 'right' ? 'Справа' : 'По центру'}
+              onClick={() => put({ align: a })}
+            >
+              {a === 'left' ? '◧' : a === 'right' ? '◨' : '▣'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="box-row">
+        <span>Фон блока</span>
+        <div className="seg mini-seg wide-seg">
+          {[
+            ['none', 'Нет'],
+            ['surface', 'Панель'],
+            ['accent', 'Акцент'],
+          ].map(([key, text]) => (
+            <button
+              key={key}
+              className={bg === key ? 'active' : ''}
+              onClick={() => put({ bg: key })}
+            >
+              {text}
+            </button>
+          ))}
+          <label className={`color-dot ${isColor ? 'active' : ''}`} title="Свой цвет">
+            <input
+              type="color"
+              value={isColor ? bg : '#ffffff'}
+              onChange={(e) => put({ bg: e.target.value })}
+            />
+          </label>
+        </div>
+      </div>
+
+      <label className="fld check">
+        <input type="checkbox" checked={!!box.shadow} onChange={(e) => put({ shadow: e.target.checked })} />
+        <span>Тень под блоком</span>
+      </label>
+
+      <div className="box-grid">
+        <label className="fld">
+          <span>Отступ сверху, px</span>
+          <input
+            type="number"
+            min={0}
+            step={8}
+            value={numOrZero(box.padt)}
+            placeholder="как в теме"
+            onChange={(e) => put({ padt: Number(e.target.value) || 0 })}
+          />
+        </label>
+        <label className="fld">
+          <span>Отступ снизу, px</span>
+          <input
+            type="number"
+            min={0}
+            step={8}
+            value={numOrZero(box.padb)}
+            placeholder="как в теме"
+            onChange={(e) => put({ padb: Number(e.target.value) || 0 })}
+          />
+        </label>
+      </div>
+
+      {GRID_TYPES.includes(block.type) && (
+        <div className="box-row">
+          <span>Колонок в сетке</span>
+          <div className="seg mini-seg wide-seg">
+            {[0, 2, 3, 4].map((n) => (
+              <button
+                key={n}
+                className={(Number(block.cols) || 0) === n ? 'active' : ''}
+                onClick={() => onPatch('cols', n)}
+              >
+                {n === 0 ? 'Авто' : n}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {block.type === 'nav' && (
+        <label className="fld check">
+          <input
+            type="checkbox"
+            checked={block.showPages !== false}
+            onChange={(e) => onPatch('showPages', e.target.checked)}
+          />
+          <span>Показывать страницы в меню</span>
+        </label>
+      )}
+    </div>
+  );
+}
+
 /* ---------------------------------- app ----------------------------------- */
 
 export default function App() {
@@ -298,7 +524,7 @@ export default function App() {
   const [rev, setRev] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [device, setDevice] = useState<DeviceId>('desktop');
-  const [tab, setTab] = useState<'templates' | 'blocks' | 'fonts' | 'style'>('templates');
+  const [tab, setTab] = useState<'pages' | 'templates' | 'blocks' | 'fonts' | 'style'>('templates');
   const [frameH, setFrameH] = useState(1100);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
@@ -311,6 +537,8 @@ export default function App() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const past = useRef<SiteDoc[]>([]);
   const future = useRef<SiteDoc[]>([]);
+  const dragFrom = useRef(-1);
+  const pageDragFrom = useRef(-1);
 
   useEffect(() => {
     loadAllFonts();
@@ -347,6 +575,7 @@ export default function App() {
     if (!prev) return;
     future.current.push(clone(docRef.current));
     setDoc(prev);
+    setSelected(null);
     setRev((r) => r + 1);
     setCanUndo(past.current.length > 0);
     setCanRedo(true);
@@ -357,18 +586,20 @@ export default function App() {
     if (!next) return;
     past.current.push(clone(docRef.current));
     setDoc(next);
+    setSelected(null);
     setRev((r) => r + 1);
     setCanUndo(true);
     setCanRedo(future.current.length > 0);
   };
 
   const html = useMemo(
-    () => buildHtml(docRef.current, { editable: true }),
+    () => buildHtml(docRef.current, { editable: true, pageId: docRef.current.current }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rev]
   );
 
-  const selectedBlock = doc.blocks.find((b) => b.id === selected) ?? null;
+  const blocks = pageOf(doc).blocks;
+  const selectedBlock = blocks.find((b) => b.id === selected) ?? null;
 
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
@@ -381,7 +612,7 @@ export default function App() {
       if (data.type === 'edit') {
         setDoc((prev) => {
           const next = clone(prev);
-          const block = next.blocks.find((b) => b.id === data.id);
+          const block = pageOf(next).blocks.find((b) => b.id === data.id);
           if (!block) return prev;
           setPath(block, data.path, data.value);
           return next;
@@ -399,7 +630,7 @@ export default function App() {
   const patchBlock = (path: string, value: unknown) => {
     if (!selectedBlock) return;
     apply((d) => {
-      const block = d.blocks.find((b) => b.id === selectedBlock.id);
+      const block = pageOf(d).blocks.find((b) => b.id === selectedBlock.id);
       if (block) setPath(block, path, value);
     });
   };
@@ -410,22 +641,40 @@ export default function App() {
     });
   };
 
+  const selectBlock = (id: string | null) => {
+    setSelected(id);
+    if (id) iframeRef.current?.contentWindow?.postMessage({ type: 'scrollTo', id }, '*');
+  };
+
   const addBlock = (type: BlockType) => {
     const block = createBlock(type);
     apply((d) => {
-      const idx = selected ? d.blocks.findIndex((b) => b.id === selected) : d.blocks.length - 1;
-      d.blocks.splice(idx + 1, 0, block);
+      const list = pageOf(d).blocks;
+      const idx = selected ? list.findIndex((b) => b.id === selected) : list.length - 1;
+      list.splice(idx + 1, 0, block);
     });
     setSelected(block.id);
+    setTab('blocks');
   };
 
   const moveBlock = (dir: -1 | 1) => {
     if (!selectedBlock) return;
     apply((d) => {
-      const i = d.blocks.findIndex((b) => b.id === selectedBlock.id);
+      const list = pageOf(d).blocks;
+      const i = list.findIndex((b) => b.id === selectedBlock.id);
       const j = i + dir;
-      if (i < 0 || j < 0 || j >= d.blocks.length) return;
-      [d.blocks[i], d.blocks[j]] = [d.blocks[j], d.blocks[i]];
+      if (i < 0 || j < 0 || j >= list.length) return;
+      [list[i], list[j]] = [list[j], list[i]];
+    });
+  };
+
+  const reorderBlocks = (from: number, to: number) => {
+    if (from < 0 || to < 0 || from === to) return;
+    apply((d) => {
+      const list = pageOf(d).blocks;
+      if (from >= list.length) return;
+      const [moved] = list.splice(from, 1);
+      list.splice(to, 0, moved);
     });
   };
 
@@ -433,8 +682,9 @@ export default function App() {
     if (!selectedBlock) return;
     const copy: Block = { ...clone(selectedBlock), id: uid() };
     apply((d) => {
-      const i = d.blocks.findIndex((b) => b.id === selectedBlock.id);
-      d.blocks.splice(i + 1, 0, copy);
+      const list = pageOf(d).blocks;
+      const i = list.findIndex((b) => b.id === selectedBlock.id);
+      list.splice(i + 1, 0, copy);
     });
     setSelected(copy.id);
   };
@@ -442,14 +692,92 @@ export default function App() {
   const deleteBlock = () => {
     if (!selectedBlock) return;
     apply((d) => {
-      d.blocks = d.blocks.filter((b) => b.id !== selectedBlock.id);
+      const page = pageOf(d);
+      page.blocks = page.blocks.filter((b) => b.id !== selectedBlock.id);
     });
     setSelected(null);
   };
 
+  /* --------------------------------- pages --------------------------------- */
+
+  const switchPage = (id: string) => {
+    if (id === docRef.current.current) return;
+    setDoc((prev) => (prev.pages.some((p) => p.id === id) ? { ...prev, current: id } : prev));
+    setSelected(null);
+    setFrameH(1100);
+    setRev((r) => r + 1);
+  };
+
+  const addPage = () => {
+    const used = new Set(docRef.current.pages.map((p) => p.slug));
+    let n = docRef.current.pages.length + 1;
+    const slug = uniqueSlug(`page-${n}`, used);
+    const page = createPage(`Страница ${n}`, slug, []);
+    apply((d) => {
+      d.pages.push(page);
+      d.current = page.id;
+    });
+    setSelected(null);
+    setFrameH(1100);
+    setTab('pages');
+  };
+
+  const renamePage = (id: string, name: string) => {
+    setDoc((prev) => ({
+      ...prev,
+      pages: prev.pages.map((p) => (p.id === id ? { ...p, name } : p)),
+    }));
+    setRev((r) => r + 1);
+  };
+
+  const duplicatePage = (id: string) => {
+    const src = docRef.current.pages.find((p) => p.id === id);
+    if (!src) return;
+    const used = new Set(docRef.current.pages.map((p) => p.slug));
+    const copy: Page = {
+      ...clone(src),
+      id: uid(),
+      name: `${src.name} — копия`,
+      slug: uniqueSlug(`${src.slug || 'page'}-2`, used),
+      blocks: src.blocks.map((b) => ({ ...clone(b), id: uid() })),
+    };
+    apply((d) => {
+      const i = d.pages.findIndex((p) => p.id === id);
+      d.pages.splice(i + 1, 0, copy);
+      d.current = copy.id;
+    });
+    setSelected(null);
+  };
+
+  const deletePage = (id: string) => {
+    if (docRef.current.pages.length < 2) {
+      window.alert('Должна остаться хотя бы одна страница.');
+      return;
+    }
+    const page = docRef.current.pages.find((p) => p.id === id);
+    if (!page) return;
+    if (!window.confirm(`Удалить страницу «${page.name}»?`)) return;
+    apply((d) => {
+      d.pages = d.pages.filter((p) => p.id !== id);
+      if (d.current === id) d.current = d.pages[0].id;
+    });
+    setSelected(null);
+  };
+
+  const reorderPages = (from: number, to: number) => {
+    if (from < 0 || to < 0 || from === to) return;
+    apply((d) => {
+      if (from >= d.pages.length) return;
+      const [moved] = d.pages.splice(from, 1);
+      d.pages.splice(to, 0, moved);
+    });
+  };
+
+  /* -------------------------------- project -------------------------------- */
+
   const useTemplate = (t: Template) => {
-    const dirty = past.current.length > 0;
-    if (dirty && !window.confirm(`Заменить текущую страницу шаблоном «${t.name}»? Несохранённые правки пропадут.`)) {
+    const dirty = docRef.current.pages.some((p) => p.blocks.length > 0);
+    if (dirty && !window.confirm(`Заменить сайт шаблоном «${t.name}»? Текущие страницы и правки пропадут.`)) {
       return;
     }
     const next = docFromTemplate(t);
@@ -485,8 +813,13 @@ export default function App() {
     setDrawer('rail');
   };
 
+  const openPages = () => {
+    setTab('pages');
+    setDrawer('rail');
+  };
+
   const resetProject = () => {
-    if (!window.confirm('Очистить страницу и начать заново с пустой страницы?')) return;
+    if (!window.confirm('Очистить все страницы и начать заново с одной пустой страницы?')) return;
     setDoc(emptyDoc());
     past.current = [];
     future.current = [];
@@ -509,7 +842,34 @@ export default function App() {
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && el.closest('input, textarea, select, [contenteditable="true"]')) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if (mod && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        redo();
+      } else if (e.key === 'Escape') {
+        setWelcome(false);
+        setDrawer(null);
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selected) {
+        e.preventDefault();
+        deleteBlock();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, canUndo, canRedo]);
+
   const deviceWidth = DEVICES.find((d) => d.id === device)?.width ?? 0;
+  const currentPage = pageOf(doc);
+  const slugList = doc.pages.map((p, i) => `#/${p.slug || `page-${i + 1}`}`).join(', ');
 
   return (
     <div className="app">
@@ -520,7 +880,7 @@ export default function App() {
           <span className="beta">free</span>
         </div>
 
-        <button className="icon-btn only-narrow" title="Шаблоны и блоки" onClick={() => setDrawer(drawer === 'rail' ? null : 'rail')}>
+        <button className="icon-btn only-narrow" title="Страницы, шаблоны и блоки" onClick={() => setDrawer(drawer === 'rail' ? null : 'rail')}>
           {icons.panels}
         </button>
 
@@ -533,6 +893,20 @@ export default function App() {
             setDoc((prev) => ({ ...prev, name }));
           }}
         />
+
+        <select
+          className="page-select"
+          value={currentPage.id}
+          aria-label="Страница"
+          title="Текущая страница"
+          onChange={(e) => switchPage(e.target.value)}
+        >
+          {doc.pages.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
 
         <div className="spacer" />
 
@@ -552,10 +926,10 @@ export default function App() {
           ))}
         </div>
 
-        <button className="icon-btn" title="Отменить" onClick={undo} disabled={!canUndo}>
+        <button className="icon-btn" title="Отменить (Ctrl+Z)" onClick={undo} disabled={!canUndo}>
           {icons.undo}
         </button>
-        <button className="icon-btn" title="Повторить" onClick={redo} disabled={!canRedo}>
+        <button className="icon-btn" title="Повторить (Ctrl+Shift+Z)" onClick={redo} disabled={!canRedo}>
           {icons.redo}
         </button>
 
@@ -581,6 +955,9 @@ export default function App() {
             <button className={tab === 'templates' ? 'active' : ''} onClick={() => setTab('templates')}>
               Шаблоны
             </button>
+            <button className={tab === 'pages' ? 'active' : ''} onClick={() => setTab('pages')}>
+              Страницы
+            </button>
             <button className={tab === 'blocks' ? 'active' : ''} onClick={() => setTab('blocks')}>
               Блоки
             </button>
@@ -596,7 +973,7 @@ export default function App() {
             {tab === 'templates' && (
               <>
                 <p className="panel-lead">
-                  Готовые страницы. Выберите шаблон — дальше правьте текст прямо на холсте.
+                  Готовые сайты. Выберите шаблон — дальше правьте текст прямо на холсте и добавляйте страницы.
                 </p>
                 <div className="tpl-grid">
                   {TEMPLATES.map((t) => (
@@ -631,14 +1008,107 @@ export default function App() {
                   ))}
                 </div>
                 <button className="ghost-btn wide" onClick={resetProject}>
-                  Очистить страницу
+                  Очистить все страницы
                 </button>
+              </>
+            )}
+
+            {tab === 'pages' && (
+              <>
+                <p className="panel-lead">
+                  У сайта может быть сколько угодно страниц. Меню в шапке подхватит их автоматически, а в экспорте
+                  каждая страница получит свой адрес.
+                </p>
+                <div className="page-list">
+                  {doc.pages.map((p, i) => (
+                    <div
+                      key={p.id}
+                      className={`page-row ${p.id === currentPage.id ? 'active' : ''}`}
+                      draggable
+                      onDragStart={() => (pageDragFrom.current = i)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        reorderPages(pageDragFrom.current, i);
+                        pageDragFrom.current = -1;
+                      }}
+                      onClick={() => switchPage(p.id)}
+                    >
+                      <span className="drag" title="Перетащите, чтобы изменить порядок">⠿</span>
+                      <span className="page-idx">{i + 1}</span>
+                      <input
+                        className="page-name"
+                        value={p.name}
+                        aria-label="Название страницы"
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => renamePage(p.id, e.target.value)}
+                      />
+                      <div className="page-acts" onClick={(e) => e.stopPropagation()}>
+                        <button className="mini" title="Дублировать страницу" onClick={() => duplicatePage(p.id)}>
+                          {icons.copy}
+                        </button>
+                        <button className="mini del" title="Удалить страницу" onClick={() => deletePage(p.id)}>
+                          {icons.trash}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button className="btn primary wide" onClick={addPage}>
+                  {icons.plus}
+                  Новая страница
+                </button>
+                <p className="hint">
+                  Адреса: {slugList}. Ссылки на страницы появятся в шапке сайта; порядок в списке — порядок в меню.
+                </p>
               </>
             )}
 
             {tab === 'blocks' && (
               <>
-                <p className="panel-lead">Добавьте секцию — она встанет после выделенного блока.</p>
+                <div className="panel-head">
+                  <span>Секции страницы «{currentPage.name}»</span>
+                  <span className="count">{blocks.length}</span>
+                </div>
+                <div className="sec-list">
+                  {blocks.map((b, i) => (
+                    <div
+                      key={b.id}
+                      className={`sec-row ${selected === b.id ? 'active' : ''}`}
+                      draggable
+                      onDragStart={() => (dragFrom.current = i)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        reorderBlocks(dragFrom.current, i);
+                        dragFrom.current = -1;
+                      }}
+                      onClick={() => selectBlock(b.id)}
+                    >
+                      <span className="drag" title="Перетащите, чтобы поменять порядок">⠿</span>
+                      <span className="sec-icon">{BLOCK_LABELS[b.type].icon}</span>
+                      <span className="sec-name">{BLOCK_LABELS[b.type].name}</span>
+                      <span className="sec-idx">{i + 1}</span>
+                      <button
+                        className="mini del"
+                        title="Удалить секцию"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelected(b.id);
+                          apply((d) => {
+                            const page = pageOf(d);
+                            page.blocks = page.blocks.filter((x) => x.id !== b.id);
+                          });
+                          if (selected === b.id) setSelected(null);
+                        }}
+                      >
+                        {icons.trash}
+                      </button>
+                    </div>
+                  ))}
+                  {blocks.length === 0 && <p className="hint">На этой странице пока нет секций — добавьте первую.</p>}
+                </div>
+                <div className="panel-head">
+                  <span>Добавить секцию</span>
+                </div>
                 <div className="block-list">
                   {(Object.keys(BLOCK_LABELS) as BlockType[]).map((type) => (
                     <button key={type} className="block-item" onClick={() => addBlock(type)}>
@@ -771,58 +1241,64 @@ export default function App() {
           </button>
 
           <main className="canvas">
-          {doc.blocks.length === 0 ? (
-            <div className="stage empty-stage">
-              <div className="empty-page">
-                <div className="empty-mark">◈</div>
-                <h2>Страница пуста</h2>
-                <p>
-                  Добавьте первый блок — шапку, первый экран, галерею — или возьмите готовый шаблон целиком.
-                  Остальное настраивается справа.
-                </p>
-                <div className="empty-actions">
-                  <button className="btn primary" onClick={openBlocks}>
-                    {icons.plus}
-                    Добавить блок
-                  </button>
-                  <button className="btn ghost" onClick={openTemplates}>
-                    Смотреть шаблоны
-                  </button>
+            {blocks.length === 0 ? (
+              <div className="stage empty-stage">
+                <div className="empty-page">
+                  <div className="empty-mark">◈</div>
+                  <h2>Страница пуста</h2>
+                  <p>
+                    «{currentPage.name}» пока без секций. Добавьте первый блок — шапку, первый экран, галерею — или
+                    возьмите готовый шаблон целиком. Размер и форму каждого блока можно задать справа.
+                  </p>
+                  <div className="empty-actions">
+                    <button className="btn primary" onClick={openBlocks}>
+                      {icons.plus}
+                      Добавить блок
+                    </button>
+                    <button className="btn ghost" onClick={openPages}>
+                      {icons.page}
+                      Страницы
+                    </button>
+                    <button className="btn ghost" onClick={openTemplates}>
+                      Смотреть шаблоны
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
-          <div className="stage">
-            <div
-              className="frame"
-              style={deviceWidth ? { width: deviceWidth, maxWidth: '100%' } : { width: '100%' }}
-            >
-              <div className="frame-bar">
-                <span className="dots">
-                  <i style={{ background: '#ff5f57' }} />
-                  <i style={{ background: '#febc2e' }} />
-                  <i style={{ background: '#28c840' }} />
-                </span>
-                <span className="frame-url">{doc.name.toLowerCase().replace(/\s+/g, '-')}.site</span>
-                <span className="frame-size">
-                  {deviceWidth ? `${deviceWidth}px` : 'авто'}
-                </span>
+            ) : (
+              <div className="stage">
+                <div
+                  className="frame"
+                  style={deviceWidth ? { width: deviceWidth, maxWidth: '100%' } : { width: '100%' }}
+                >
+                  <div className="frame-bar">
+                    <span className="dots">
+                      <i style={{ background: '#ff5f57' }} />
+                      <i style={{ background: '#febc2e' }} />
+                      <i style={{ background: '#28c840' }} />
+                    </span>
+                    <span className="frame-url">
+                      {doc.name.toLowerCase().replace(/\s+/g, '-')}.site
+                      {doc.pages.length > 1 ? `/${currentPage.slug}` : ''}
+                    </span>
+                    <span className="frame-size">{deviceWidth ? `${deviceWidth}px` : 'авто'}</span>
+                  </div>
+                  <iframe
+                    ref={iframeRef}
+                    key={`${rev}-${device}`}
+                    title="Превью сайта"
+                    className="site-frame"
+                    srcDoc={html}
+                    style={{ height: frameH }}
+                    sandbox="allow-scripts allow-same-origin allow-popups"
+                  />
+                </div>
+                <p className="canvas-hint">
+                  Правьте текст кликом на холсте · секции перетаскиваются в панели «Блоки» · Ctrl+Z отменяет
+                  правку
+                </p>
               </div>
-              <iframe
-                ref={iframeRef}
-                key={`${rev}-${device}`}
-                title="Превью сайта"
-                className="site-frame"
-                srcDoc={html}
-                style={{ height: frameH }}
-                sandbox="allow-scripts allow-same-origin allow-popups"
-              />
-            </div>
-            <p className="canvas-hint">
-              Кликните по тексту на странице, чтобы править его на месте · выделенный блок настраивается справа
-            </p>
-          </div>
-          )}
+            )}
           </main>
         </div>
 
@@ -832,7 +1308,9 @@ export default function App() {
               <div className="insp-head">
                 <div>
                   <span className="insp-type">{BLOCK_LABELS[selectedBlock.type].name}</span>
-                  <span className="insp-id">#{doc.blocks.findIndex((b) => b.id === selectedBlock.id) + 1}</span>
+                  <span className="insp-id">
+                    #{blocks.findIndex((b) => b.id === selectedBlock.id) + 1}
+                  </span>
                 </div>
                 <div className="insp-actions">
                   <button className="mini" title="Выше" onClick={() => moveBlock(-1)}>
@@ -850,8 +1328,13 @@ export default function App() {
                 </div>
               </div>
               <div className="panel">
+                <BoxInspector
+                  block={selectedBlock}
+                  onPatch={patchBlock}
+                  onReset={() => patchBlock('box', undefined)}
+                />
                 {Object.entries(selectedBlock)
-                  .filter(([k]) => k !== 'id' && k !== 'type')
+                  .filter(([k]) => !['id', 'type', 'box', 'cols', 'showPages'].includes(k))
                   .map(([k, v]) => (
                     <Field key={k} path={k} name={k} value={v} onChange={patchBlock} />
                   ))}
@@ -865,25 +1348,25 @@ export default function App() {
               <div className="empty-mark">◈</div>
               <h3>Настройки блока</h3>
               <p>
-                Выберите секцию на холсте или введите текст прямо на странице. Здесь появятся поля для
-                изображений, списков и тарифов.
+                Выберите секцию на холсте или в панели «Блоки». Здесь появятся её размеры, фон, форма и все
+                текстовые поля.
               </p>
               <div className="stat-row">
                 <div>
-                  <strong>{doc.blocks.length}</strong>
+                  <strong>{blocks.length}</strong>
                   <span>блоков</span>
+                </div>
+                <div>
+                  <strong>{doc.pages.length}</strong>
+                  <span>страниц</span>
                 </div>
                 <div>
                   <strong>{doc.theme.fontHeading}</strong>
                   <span>заголовки</span>
                 </div>
-                <div>
-                  <strong>{doc.theme.fontBody}</strong>
-                  <span>текст</span>
-                </div>
               </div>
               <p className="hint">
-                Всё сохраняется в браузере автоматически. Готовый сайт забирается кнопкой «Скачать HTML».
+                Всё сохраняется в браузере автоматически. Многостраничный сайт экспортируется одним HTML-файлом.
               </p>
             </div>
           )}
@@ -899,8 +1382,9 @@ export default function App() {
             </div>
             <h1>Реактор</h1>
             <p className="welcome-lead">
-              Конструктор сайтов прямо в браузере. Выберите шаблон или начните с пустой страницы, печатайте текст
-              кликом на холсте, подбирайте шрифты и палитру — а готовый сайт скачайте одним HTML-файлом.
+              Конструктор сайтов прямо в браузере. Собирайте страницы из готовых секций, правьте текст кликом на
+              холсте, задавайте каждому блоку свои ширину, высоту, скругление и фон — и добавляйте сколько угодно
+              страниц. Готовый сайт скачивается одним HTML-файлом.
             </p>
             <div className="welcome-points">
               <div>
@@ -915,6 +1399,10 @@ export default function App() {
                 <strong>25</strong>
                 <span>шрифтов с кириллицей</span>
               </div>
+              <div>
+                <strong>∞</strong>
+                <span>страниц на сайт</span>
+              </div>
             </div>
             <div className="welcome-actions">
               <button className="btn primary big" onClick={startBlank}>
@@ -924,7 +1412,7 @@ export default function App() {
                 Выбрать шаблон
               </button>
             </div>
-            {doc.blocks.length > 0 && (
+            {doc.pages.some((p) => p.blocks.length > 0) && (
               <button className="welcome-resume" onClick={() => setWelcome(false)}>
                 Продолжить с «{doc.name}»
               </button>

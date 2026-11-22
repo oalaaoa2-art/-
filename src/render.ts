@@ -1,4 +1,4 @@
-import type { Block, SiteDoc, Theme } from './types';
+import type { Block, Page, SiteDoc, Theme } from './types';
 import { googleFontsUrl } from './fonts';
 
 export const esc = (s: unknown): string =>
@@ -31,16 +31,91 @@ const ph = (url: string | undefined, alt: string, cls = '') =>
     ? `<img${cls ? ` class="${cls}"` : ''} src="${esc(url)}" alt="${esc(alt)}" loading="lazy" />`
     : `<div class="ph${cls ? ' ' + cls : ''}" role="img" aria-label="${esc(alt)}"><span>Изображение</span></div>`;
 
+/* ------------------------------- page helpers ------------------------------ */
+
+export type Ctx = { pages?: Page[]; currentSlug?: string };
+
+export const slugOf = (p: Page, i: number): string => p.slug || `page-${i + 1}`;
+
+const HEX = /^#[0-9a-f]{3,8}$/i;
+
+/** Применяет размеры и форму блока (ширина, скругление, фон, высота) к его корню. */
+function decorate(html: string, b: Block): string {
+  const box = b.box;
+  if (!box || !html) return html;
+  const css: string[] = [];
+  const cls: string[] = [];
+  const width = Number(box.width) || 0;
+  const narrow = (width > 0 && width < 100) || Number(box.maxw) > 0;
+  if (width > 0 && width < 100) css.push(`width:${width}%`);
+  if (Number(box.maxw) > 0) css.push(`max-width:${box.maxw}px`);
+  if (narrow) {
+    const align = box.align || 'center';
+    css.push(
+      align === 'left'
+        ? 'margin-left:0;margin-right:auto'
+        : align === 'right'
+          ? 'margin-left:auto;margin-right:0'
+          : 'margin-left:auto;margin-right:auto'
+    );
+  }
+  if (Number(box.radius) > 0) css.push(`border-radius:${box.radius}px`);
+  if (Number(box.minh) > 0) {
+    css.push(`min-height:${box.minh}px`);
+    cls.push('minh');
+  }
+  if (box.padt != null) css.push(`padding-top:${Number(box.padt) || 0}px`);
+  if (box.padb != null) css.push(`padding-bottom:${Number(box.padb) || 0}px`);
+  const bg = box.bg || 'none';
+  if (bg === 'surface') {
+    css.push('background:var(--surface)');
+    cls.push('boxed');
+  } else if (bg === 'accent') {
+    css.push('background:var(--accent);color:var(--accent-text)');
+    cls.push('boxed');
+  } else if (HEX.test(bg)) {
+    css.push(`background:${bg}`);
+    cls.push('boxed');
+  }
+  if (box.shadow) cls.push('shadowed');
+  if (!css.length && !cls.length) return html;
+  const style = css.length ? ` style="${css.join(';')}"` : '';
+  return html.replace(/^<([a-zA-Z]+)([^>]*)>/, (_m, tag: string, attrs: string) => {
+    let a = attrs;
+    if (cls.length) {
+      a = /class="/.test(a)
+        ? a.replace(/class="([^"]*)"/, (_x: string, c: string) => `class="${c} ${cls.join(' ')}"`)
+        : `${a} class="${cls.join(' ')}"`;
+    }
+    return `<${tag}${a}${style}>`;
+  });
+}
+
 /* ---------------------------------- blocks --------------------------------- */
 
-function renderBlock(b: Block): string {
+function renderBlock(b: Block, ctx: Ctx = {}): string {
+  return decorate(body(b, ctx), b);
+}
+
+function body(b: Block, ctx: Ctx): string {
   switch (b.type) {
     case 'nav': {
       const links = (b.links ?? []) as string[];
+      const pageLinks =
+        (ctx.pages?.length ?? 0) > 1 && b.showPages !== false
+          ? ctx.pages!
+              .map(
+                (p, i) =>
+                  `<a class="page-link${slugOf(p, i) === ctx.currentSlug ? ' on' : ''}" href="#/${esc(
+                    slugOf(p, i)
+                  )}">${esc(p.name)}</a>`
+              )
+              .join('')
+          : '';
       return `<header class="nav" data-bid="${b.id}">
   <div class="wrap nav-in">
     <span class="brand" data-field="brand">${esc(b.brand)}</span>
-    <nav class="links">${links
+    <nav class="links">${pageLinks}${links
       .map((l, i) => `<a href="#" data-field="links.${i}">${esc(l)}</a>`)
       .join('')}</nav>
     ${b.cta ? `<a class="btn btn-sm nav-cta" href="#" data-field="cta">${esc(b.cta)}</a>` : ''}
@@ -68,6 +143,7 @@ function renderBlock(b: Block): string {
 
     case 'features': {
       const items = (b.items ?? []) as { icon: string; title: string; text: string }[];
+      const cols = Number(b.cols) || 0;
       return `<section class="section" data-bid="${b.id}">
   <div class="wrap">
     <div class="head">
@@ -75,7 +151,7 @@ function renderBlock(b: Block): string {
       ${b.title ? f('title', b.title, '', 'h2') : ''}
       ${b.subtitle ? f('subtitle', b.subtitle, 'sub muted', 'p') : ''}
     </div>
-    <div class="grid grid-3">
+    <div class="grid grid-3${cols ? ' cols' : ''}"${cols ? ` style="--cols:${cols}"` : ''}>
       ${items
         .map(
           (it, i) => `<article class="card">
@@ -113,6 +189,7 @@ function renderBlock(b: Block): string {
 
     case 'gallery': {
       const images = (b.images ?? []) as { url: string; caption: string }[];
+      const cols = Number(b.cols) || 0;
       return `<section class="section" data-bid="${b.id}">
   <div class="wrap">
     <div class="head">
@@ -120,7 +197,7 @@ function renderBlock(b: Block): string {
       ${b.title ? f('title', b.title, '', 'h2') : ''}
       ${b.subtitle ? f('subtitle', b.subtitle, 'sub muted', 'p') : ''}
     </div>
-    <div class="gal">
+    <div class="gal${cols ? ' cols' : ''}"${cols ? ` style="--cols:${cols}"` : ''}>
       ${images
         .map(
           (im, i) => `<figure class="gal-item">
@@ -136,10 +213,11 @@ function renderBlock(b: Block): string {
 
     case 'stats': {
       const items = (b.items ?? []) as { value: string; label: string }[];
+      const cols = Number(b.cols) || 0;
       return `<section class="section stats-section" data-bid="${b.id}">
   <div class="wrap">
     ${b.title ? `<div class="head"><h2 data-field="title">${esc(b.title)}</h2></div>` : ''}
-    <div class="stats">
+    <div class="stats${cols ? ' cols' : ''}"${cols ? ` style="--cols:${cols}"` : ''}>
       ${items
         .map(
           (it, i) => `<div class="stat">
@@ -163,6 +241,7 @@ function renderBlock(b: Block): string {
         cta: string;
         featured?: boolean;
       }[];
+      const cols = Number(b.cols) || 0;
       return `<section class="section" data-bid="${b.id}">
   <div class="wrap">
     <div class="head">
@@ -170,7 +249,7 @@ function renderBlock(b: Block): string {
       ${b.title ? f('title', b.title, '', 'h2') : ''}
       ${b.subtitle ? f('subtitle', b.subtitle, 'sub muted', 'p') : ''}
     </div>
-    <div class="grid grid-3 plans">
+    <div class="grid grid-3 plans${cols ? ' cols' : ''}"${cols ? ` style="--cols:${cols}"` : ''}>
       ${plans
         .map(
           (p, i) => `<article class="card plan${p.featured ? ' featured' : ''}">
@@ -379,6 +458,15 @@ small{font-size:14px}
 .foot-links{display:flex;gap:22px;flex-wrap:wrap;font-size:15px;color:var(--muted)}
 .foot-links a:hover{color:var(--text)}
 .foot-note{margin-top:36px;padding-top:20px;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted)}
+.page[hidden]{display:none}
+.boxed{border:1px solid var(--line)}
+.shadowed{box-shadow:0 34px 80px -52px ${rgba(t.text, 0.6)}}
+.minh{display:flex;flex-direction:column;justify-content:center}
+.links a.on{color:var(--text);font-weight:600}
+.cols{grid-template-columns:repeat(var(--cols),minmax(0,1fr))}
+.gal.cols .gal-item:nth-child(4n+1){grid-column:auto;aspect-ratio:4/3.1}
+@media (max-width:900px){.cols{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:620px){.cols,.gal.cols{grid-template-columns:1fr}}
 @media (max-width:880px){
   .links{display:none}
   .nav-in{min-height:64px}
@@ -477,17 +565,61 @@ const editorScript = `
 
 /* ---------------------------------- build ---------------------------------- */
 
-export function buildHtml(doc: SiteDoc, opts: { editable?: boolean } = {}): string {
+const routerScript = `
+(function(){
+  var views=[].slice.call(document.querySelectorAll('.page'));
+  if(views.length<2)return;
+  function show(slug){
+    var found=false;
+    for(var i=0;i<views.length;i++){
+      var on=views[i].getAttribute('data-page')===slug;
+      views[i].hidden=!on;
+      if(on)found=true;
+    }
+    if(!found)views[0].hidden=false;
+    window.scrollTo(0,0);
+  }
+  function fromHash(){
+    var m=(location.hash||'').match(/^#\\/(.+)$/);
+    show(m?decodeURIComponent(m[1]):views[0].getAttribute('data-page'));
+  }
+  window.addEventListener('hashchange',fromHash);
+  fromHash();
+})();
+`;
+
+export function buildHtml(
+  doc: SiteDoc,
+  opts: { editable?: boolean; pageId?: string } = {}
+): string {
   const t = doc.theme;
   const fonts = googleFontsUrl([t.fontHeading, t.fontBody]);
-  const body = doc.blocks.map(renderBlock).join('\n');
+  const legacy = doc as unknown as { blocks?: Block[] };
+  const pages: Page[] =
+    doc.pages && doc.pages.length
+      ? doc.pages
+      : [{ id: 'page', name: 'Главная', slug: 'index', blocks: legacy.blocks ?? [] }];
+  const editable = !!opts.editable;
+  const active = editable ? pages.find((p) => p.id === opts.pageId) ?? pages[0] : null;
+
+  const renderPage = (p: Page, i: number) => {
+    const ctx: Ctx = { pages, currentSlug: slugOf(p, i) };
+    const inner = p.blocks.map((b) => renderBlock(b, ctx)).join('\n');
+    return `<div class="page" data-page="${esc(slugOf(p, i))}">\n${inner}\n</div>`;
+  };
+
+  const body = active
+    ? renderPage(active, pages.indexOf(active))
+    : pages.map(renderPage).join('\n');
+  const router = !editable && pages.length > 1 ? `<script>${routerScript}</script>` : '';
+  const title = editable && active && active.name !== 'Главная' ? `${doc.name} — ${active.name}` : doc.name || 'Мой сайт';
 
   return `<!doctype html>
 <html lang="ru">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${esc(doc.name || 'Мой сайт')}</title>
+<title>${esc(title || 'Мой сайт')}</title>
 <meta name="description" content="${esc(doc.name || 'Мой сайт')} — сайт, собранный в Реакторе." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -496,6 +628,7 @@ export function buildHtml(doc: SiteDoc, opts: { editable?: boolean } = {}): stri
 </head>
 <body>
 ${body}
+${router}
 ${opts.editable ? `<script>${editorScript}</script>` : ''}
 </body>
 </html>`;
