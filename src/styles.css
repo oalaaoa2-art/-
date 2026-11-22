@@ -66,6 +66,7 @@ textarea {
 
 .app {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 58px minmax(0, 1fr);
   height: 100vh;
 }
@@ -75,6 +76,8 @@ textarea {
   align-items: center;
   gap: 10px;
   padding: 0 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
   border-bottom: 1px solid var(--line);
   background: linear-gradient(180deg, #0c101a, #080b12);
   position: relative;
@@ -985,4 +988,242 @@ textarea {
   .btn.primary span {
     display: none;
   }
+}
+
+/* ------------------------------ empty page -------------------------------- */
+
+.canvas-wrap {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.canvas-wrap .canvas {
+  flex: 1;
+  min-width: 0;
+}
+
+.fab-tpl {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  writing-mode: vertical-rl;
+  padding: 16px 9px;
+  border: 1px solid #242c41;
+  border-left: 0;
+  border-radius: 0 11px 11px 0;
+  background: #121728;
+  color: #c3cce2;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 14px 34px -18px rgba(0, 0, 0, 0.9);
+  transition: background 0.15s ease, color 0.15s ease, padding 0.15s ease;
+}
+
+.fab-tpl:hover {
+  background: #1b2236;
+  color: #fff;
+  padding-left: 13px;
+}
+
+.empty-stage {
+  justify-content: center;
+}
+
+.empty-page {
+  width: min(470px, 100%);
+  max-width: 470px;
+  min-width: 0;
+  padding: 44px 34px;
+  text-align: center;
+  color: #cfd6e6;
+  background: #0b0e18;
+  border: 1px dashed #2a3348;
+  border-radius: 16px;
+}
+
+.empty-page .empty-mark {
+  font-size: 26px;
+  color: var(--acc);
+}
+
+.empty-page h2 {
+  margin: 10px 0 8px;
+  font-size: 21px;
+  color: #f2f5fd;
+}
+
+.empty-page p {
+  margin: 0 auto;
+  max-width: 350px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #8b95ad;
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.help-mark {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  color: inherit;
+}
+
+/* -------------------------------- welcome --------------------------------- */
+
+.welcome {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow: auto;
+  background:
+    radial-gradient(900px 500px at 50% 0%, rgba(124, 92, 255, 0.28), transparent 70%),
+    rgba(4, 5, 10, 0.82);
+  backdrop-filter: blur(10px);
+}
+
+.welcome-card {
+  width: min(620px, 100%);
+  padding: 34px 36px 28px;
+  background: linear-gradient(180deg, #14182a, #0b0e18);
+  border: 1px solid #262e44;
+  border-radius: 20px;
+  box-shadow: 0 50px 120px -50px rgba(0, 0, 0, 0.95);
+  color: #e8ecf8;
+}
+
+.welcome-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.welcome-mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  font-size: 20px;
+  background: linear-gradient(140deg, #7c5cff, #3e2fa8);
+  box-shadow: 0 10px 26px -12px rgba(124, 92, 255, 0.9);
+}
+
+.welcome-tag {
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8e98b3;
+}
+
+.welcome-card h1 {
+  margin: 0 0 12px;
+  font-size: clamp(28px, 5vw, 36px);
+  letter-spacing: -0.03em;
+}
+
+.welcome-lead {
+  margin: 0;
+  max-width: 500px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: #a7b0c8;
+}
+
+.welcome-points {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 22px 0;
+}
+
+.welcome-points div {
+  padding: 12px 14px;
+  background: #0e1222;
+  border: 1px solid #232b40;
+  border-radius: 11px;
+}
+
+.welcome-points strong {
+  display: block;
+  font-size: 20px;
+  color: #fff;
+}
+
+.welcome-points span {
+  font-size: 11px;
+  color: #8a94ad;
+}
+
+.welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.btn.big {
+  padding: 13px 22px;
+  font-size: 14.5px;
+}
+
+.btn.ghost.big {
+  background: #131a2c;
+  border-color: #2a3348;
+  color: #dfe5f3;
+}
+
+.btn.ghost.big:hover {
+  background: #1a2236;
+}
+
+.welcome-resume {
+  margin-top: 14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #9f8bff;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.welcome-note {
+  margin: 18px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #6f7891;
+}
+
+@media (max-width: 620px) {
+  .welcome-card {
+    padding: 26px 22px 22px;
+  }
+  .welcome-points {
+    grid-template-columns: 1fr;
+  }
+  .welcome-actions .btn {
+    width: 100%;
+  }
+}
+
+.topbar::-webkit-scrollbar {
+  display: none;
 }

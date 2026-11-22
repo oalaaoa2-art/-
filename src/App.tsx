@@ -6,8 +6,8 @@ import {
   STORAGE_KEY,
   TEMPLATES,
   createBlock,
-  defaultDoc,
   docFromTemplate,
+  emptyDoc,
   uid,
   type Template,
 } from './templates';
@@ -79,7 +79,7 @@ function loadInitial(): SiteDoc {
   } catch {
     /* повреждённое сохранение — начинаем с шаблона */
   }
-  return defaultDoc();
+  return emptyDoc();
 }
 
 const DEVICES = [
@@ -304,6 +304,7 @@ export default function App() {
   const [canRedo, setCanRedo] = useState(false);
   const [saved, setSaved] = useState(true);
   const [drawer, setDrawer] = useState<'rail' | 'insp' | null>(null);
+  const [welcome, setWelcome] = useState(true);
 
   const docRef = useRef(doc);
   docRef.current = doc;
@@ -462,9 +463,31 @@ export default function App() {
     setDrawer(null);
   };
 
+  const startBlank = () => {
+    setDoc(emptyDoc());
+    past.current = [];
+    future.current = [];
+    setCanUndo(false);
+    setCanRedo(false);
+    setSelected(null);
+    setRev((r) => r + 1);
+    setWelcome(false);
+  };
+
+  const openTemplates = () => {
+    setTab('templates');
+    setDrawer('rail');
+    setWelcome(false);
+  };
+
+  const openBlocks = () => {
+    setTab('blocks');
+    setDrawer('rail');
+  };
+
   const resetProject = () => {
-    if (!window.confirm('Очистить страницу и начать заново с пустого шаблона?')) return;
-    setDoc(defaultDoc());
+    if (!window.confirm('Очистить страницу и начать заново с пустой страницы?')) return;
+    setDoc(emptyDoc());
     past.current = [];
     future.current = [];
     setCanUndo(false);
@@ -537,6 +560,10 @@ export default function App() {
         </button>
 
         <span className={`save-state ${saved ? '' : 'dirty'}`}>{saved ? 'Сохранено' : 'Сохраняем…'}</span>
+
+        <button className="icon-btn" title="О редакторе" onClick={() => setWelcome(true)}>
+          <span className="help-mark">?</span>
+        </button>
 
         <button className="btn primary" onClick={exportHtml}>
           {icons.download}
@@ -738,7 +765,33 @@ export default function App() {
           </div>
         </aside>
 
-        <main className="canvas">
+        <div className="canvas-wrap">
+          <button className="fab-tpl" onClick={openTemplates} title="Готовые шаблоны">
+            <span>Шаблоны</span>
+          </button>
+
+          <main className="canvas">
+          {doc.blocks.length === 0 ? (
+            <div className="stage empty-stage">
+              <div className="empty-page">
+                <div className="empty-mark">◈</div>
+                <h2>Страница пуста</h2>
+                <p>
+                  Добавьте первый блок — шапку, первый экран, галерею — или возьмите готовый шаблон целиком.
+                  Остальное настраивается справа.
+                </p>
+                <div className="empty-actions">
+                  <button className="btn primary" onClick={openBlocks}>
+                    {icons.plus}
+                    Добавить блок
+                  </button>
+                  <button className="btn ghost" onClick={openTemplates}>
+                    Смотреть шаблоны
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
           <div className="stage">
             <div
               className="frame"
@@ -769,7 +822,9 @@ export default function App() {
               Кликните по тексту на странице, чтобы править его на месте · выделенный блок настраивается справа
             </p>
           </div>
-        </main>
+          )}
+          </main>
+        </div>
 
         <aside className={`inspector ${drawer === 'insp' ? 'open' : ''}`}>
           {selectedBlock ? (
@@ -834,6 +889,52 @@ export default function App() {
           )}
         </aside>
       </div>
+
+      {welcome && (
+        <div className="welcome">
+          <div className="welcome-card">
+            <div className="welcome-head">
+              <span className="welcome-mark">⚛</span>
+              <span className="welcome-tag">бесплатно · без регистрации · без бэкенда</span>
+            </div>
+            <h1>Реактор</h1>
+            <p className="welcome-lead">
+              Конструктор сайтов прямо в браузере. Выберите шаблон или начните с пустой страницы, печатайте текст
+              кликом на холсте, подбирайте шрифты и палитру — а готовый сайт скачайте одним HTML-файлом.
+            </p>
+            <div className="welcome-points">
+              <div>
+                <strong>6</strong>
+                <span>готовых шаблонов</span>
+              </div>
+              <div>
+                <strong>11</strong>
+                <span>типов блоков</span>
+              </div>
+              <div>
+                <strong>25</strong>
+                <span>шрифтов с кириллицей</span>
+              </div>
+            </div>
+            <div className="welcome-actions">
+              <button className="btn primary big" onClick={startBlank}>
+                Начать с пустой страницы
+              </button>
+              <button className="btn ghost big" onClick={openTemplates}>
+                Выбрать шаблон
+              </button>
+            </div>
+            {doc.blocks.length > 0 && (
+              <button className="welcome-resume" onClick={() => setWelcome(false)}>
+                Продолжить с «{doc.name}»
+              </button>
+            )}
+            <p className="welcome-note">
+              Черновик сохраняется в этом браузере автоматически. Экспорт — кнопка «Скачать HTML» сверху.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

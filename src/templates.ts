@@ -786,8 +786,24 @@ export function docFromTemplate(t: Template): SiteDoc {
   return { name: t.name, theme: { ...t.theme }, blocks: t.blocks(), templateId: t.id };
 }
 
-export function defaultDoc(): SiteDoc {
-  return docFromTemplate(TEMPLATES[0]);
+export function emptyDoc(): SiteDoc {
+  return {
+    name: 'Мой сайт',
+    theme: {
+      bg: '#ffffff',
+      surface: '#f5f6ff',
+      text: '#111322',
+      muted: '#5b6178',
+      accent: '#4f46e5',
+      accentText: '#ffffff',
+      fontHeading: 'Onest',
+      fontBody: 'Inter',
+      radius: 20,
+      maxWidth: 1140,
+    },
+    blocks: [],
+    templateId: '',
+  };
 }
 
 export const STORAGE_KEY = 'reactor.site.v1';
