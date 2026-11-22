@@ -335,6 +335,216 @@ function body(b: Block, ctx: Ctx): string {
 </footer>`;
     }
 
+    case 'banner':
+      return `<div class="banner" data-bid="${b.id}">
+  <div class="wrap banner-in">
+    <span data-field="text">${esc(b.text)}</span>
+    ${b.cta ? `<a class="btn btn-sm" href="#" data-field="cta">${esc(b.cta)}</a>` : ''}
+  </div>
+</div>`;
+
+    case 'logos': {
+      const logos = (b.logos ?? []) as string[];
+      return `<section class="section logos-sec" data-bid="${b.id}">
+  <div class="wrap">
+    ${b.title ? `<div class="head"><h2 data-field="title">${esc(b.title)}</h2></div>` : ''}
+    <div class="logos">${logos
+      .map((l, i) => `<span class="logo-chip" data-field="logos.${i}">${esc(l)}</span>`)
+      .join('')}</div>
+  </div>
+</section>`;
+    }
+
+    case 'steps': {
+      const items = (b.items ?? []) as { title: string; text: string }[];
+      return `<section class="section" data-bid="${b.id}">
+  <div class="wrap">
+    <div class="head">
+      ${b.kicker ? f('kicker', b.kicker, 'eyebrow') : ''}
+      ${b.title ? f('title', b.title, '', 'h2') : ''}
+      ${b.subtitle ? f('subtitle', b.subtitle, 'sub muted', 'p') : ''}
+    </div>
+    <div class="steps">
+      ${items
+        .map(
+          (it, i) => `<div class="step">
+        <span class="step-num">0${i + 1}</span>
+        <h3 data-field="items.${i}.title">${esc(it.title)}</h3>
+        <p data-field="items.${i}.text">${esc(it.text)}</p>
+      </div>`
+        )
+        .join('\n      ')}
+    </div>
+  </div>
+</section>`;
+    }
+
+    case 'faq': {
+      const items = (b.items ?? []) as { q: string; a: string }[];
+      return `<section class="section" data-bid="${b.id}">
+  <div class="wrap faq-wrap">
+    <div class="head">
+      ${b.kicker ? f('kicker', b.kicker, 'eyebrow') : ''}
+      ${b.title ? f('title', b.title, '', 'h2') : ''}
+      ${b.subtitle ? f('subtitle', b.subtitle, 'sub muted', 'p') : ''}
+    </div>
+    <div class="faq-list">
+      ${items
+        .map(
+          (it, i) => `<div class="faq-item">
+        <h3 data-field="items.${i}.q">${esc(it.q)}</h3>
+        <p data-field="items.${i}.a">${esc(it.a)}</p>
+      </div>`
+        )
+        .join('\n      ')}
+    </div>
+  </div>
+</section>`;
+    }
+
+    case 'team': {
+      const people = (b.people ?? []) as { name: string; role: string; photo: string }[];
+      const cols = Number(b.cols) || 0;
+      return `<section class="section" data-bid="${b.id}">
+  <div class="wrap">
+    <div class="head">
+      ${b.kicker ? f('kicker', b.kicker, 'eyebrow') : ''}
+      ${b.title ? f('title', b.title, '', 'h2') : ''}
+      ${b.subtitle ? f('subtitle', b.subtitle, 'sub muted', 'p') : ''}
+    </div>
+    <div class="team-grid"${cols ? ` style="--cols:${cols}"` : ''}>
+      ${people
+        .map(
+          (p, i) => `<figure class="member">
+        <div class="member-photo">${ph(p.photo, p.name)}</div>
+        <h3 data-field="people.${i}.name">${esc(p.name)}</h3>
+        <span data-field="people.${i}.role">${esc(p.role)}</span>
+      </figure>`
+        )
+        .join('\n      ')}
+    </div>
+  </div>
+</section>`;
+    }
+
+    case 'timeline': {
+      const items = (b.items ?? []) as { date: string; title: string; text: string }[];
+      return `<section class="section" data-bid="${b.id}">
+  <div class="wrap">
+    <div class="head">
+      ${b.kicker ? f('kicker', b.kicker, 'eyebrow') : ''}
+      ${b.title ? f('title', b.title, '', 'h2') : ''}
+    </div>
+    <div class="timeline">
+      ${items
+        .map(
+          (it, i) => `<div class="tl-item">
+        ${it.date ? `<span class="tl-date" data-field="items.${i}.date">${esc(it.date)}</span>` : ''}
+        <h3 data-field="items.${i}.title">${esc(it.title)}</h3>
+        <p data-field="items.${i}.text">${esc(it.text)}</p>
+      </div>`
+        )
+        .join('\n      ')}
+    </div>
+  </div>
+</section>`;
+    }
+
+    case 'table': {
+      const cols = (b.cols ?? []) as string[];
+      const rows = (b.rows ?? []) as { label: string; cells: string[] }[];
+      return `<section class="section" data-bid="${b.id}">
+  <div class="wrap">
+    <div class="head">
+      ${b.title ? f('title', b.title, '', 'h2') : ''}
+      ${b.subtitle ? f('subtitle', b.subtitle, 'sub muted', 'p') : ''}
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th></th>${cols
+          .map((c, i) => `<th data-field="cols.${i}">${esc(c)}</th>`)
+          .join('')}</tr></thead>
+        <tbody>${rows
+          .map(
+            (r, i) => `<tr><td data-field="rows.${i}.label">${esc(r.label)}</td>${(r.cells ?? [])
+              .map((c, j) => `<td data-field="rows.${i}.cells.${j}">${esc(c)}</td>`)
+              .join('')}</tr>`
+          )
+          .join('')}</tbody>
+      </table>
+    </div>
+  </div>
+</section>`;
+    }
+
+    case 'text':
+      return `<section class="section" data-bid="${b.id}">
+  <div class="wrap prose${b.align === 'center' ? ' align-center' : ''}">
+    ${b.kicker ? f('kicker', b.kicker, 'eyebrow') : ''}
+    ${b.title ? f('title', b.title, '', 'h2') : ''}
+    ${b.text ? f('text', b.text, '', 'p') : ''}
+  </div>
+</section>`;
+
+    case 'video':
+      return `<section class="section" data-bid="${b.id}">
+  <div class="wrap">
+    <div class="head">
+      ${b.kicker ? f('kicker', b.kicker, 'eyebrow') : ''}
+      ${b.title ? f('title', b.title, '', 'h2') : ''}
+      ${b.text ? f('text', b.text, 'sub muted', 'p') : ''}
+    </div>
+    <figure class="video-box">
+      ${ph(b.poster, b.title || 'Видео')}
+      <span class="play" aria-hidden="true"></span>
+      ${b.videoUrl ? `<a class="btn video-link" href="${esc(b.videoUrl)}" target="_blank" rel="noopener">Смотреть видео</a>` : ''}
+    </figure>
+  </div>
+</section>`;
+
+    case 'subscribe':
+      return `<section class="section" data-bid="${b.id}">
+  <div class="wrap">
+    <div class="subscribe-box">
+      ${b.kicker ? f('kicker', b.kicker, 'eyebrow') : ''}
+      ${b.title ? f('title', b.title, '', 'h2') : ''}
+      ${b.text ? f('text', b.text, 'muted', 'p') : ''}
+      <form class="sub-form" onsubmit="return false">
+        <input type="email" placeholder="${esc(b.placeholder || 'you@example.com')}" />
+        <button class="btn" type="submit" data-field="cta">${esc(b.cta)}</button>
+      </form>
+      ${b.note ? f('note', b.note, 'sub-note', 'p') : ''}
+    </div>
+  </div>
+</section>`;
+
+    case 'testimonials': {
+      const items = (b.items ?? []) as { quote: string; author: string; role: string }[];
+      const cols = Number(b.cols) || 0;
+      return `<section class="section" data-bid="${b.id}">
+  <div class="wrap">
+    <div class="head">
+      ${b.kicker ? f('kicker', b.kicker, 'eyebrow') : ''}
+      ${b.title ? f('title', b.title, '', 'h2') : ''}
+      ${b.subtitle ? f('subtitle', b.subtitle, 'sub muted', 'p') : ''}
+    </div>
+    <div class="testimonials"${cols ? ` style="--cols:${cols}"` : ''}>
+      ${items
+        .map(
+          (it, i) => `<article class="testimonial">
+        <p data-field="items.${i}.quote">${esc(it.quote)}</p>
+        <div class="who">
+          <strong data-field="items.${i}.author">${esc(it.author)}</strong>
+          <span data-field="items.${i}.role">${esc(it.role)}</span>
+        </div>
+      </article>`
+        )
+        .join('\n      ')}
+    </div>
+  </div>
+</section>`;
+    }
+
     default:
       return '';
   }
@@ -458,6 +668,62 @@ small{font-size:14px}
 .foot-links{display:flex;gap:22px;flex-wrap:wrap;font-size:15px;color:var(--muted)}
 .foot-links a:hover{color:var(--text)}
 .foot-note{margin-top:36px;padding-top:20px;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted)}
+.banner{background:var(--accent);color:var(--accent-text);font-size:14.5px}
+.banner-in{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;padding:11px 0}
+.banner .btn{background:var(--accent-text);color:var(--accent);padding:7px 16px;font-size:13px}
+.logos{display:flex;flex-wrap:wrap;justify-content:center;gap:14px 34px;align-items:center}
+.logo-chip{font-family:var(--font-h);font-size:clamp(16px,2vw,22px);font-weight:700;letter-spacing:-0.01em;opacity:.62;padding:8px 12px;border-radius:8px;transition:opacity .2s}
+.logo-chip:hover{opacity:1}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:22px}
+.step{padding:24px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);display:flex;flex-direction:column;gap:8px}
+.step-num{font-family:var(--font-h);font-size:13px;font-weight:700;letter-spacing:.14em;color:var(--accent);text-transform:uppercase}
+.step h3{margin:0}
+.step p{margin:0;color:var(--muted);font-size:15.5px}
+.faq-wrap{display:grid;grid-template-columns:.85fr 1.15fr;gap:clamp(24px,4vw,60px);align-items:start}
+.faq-wrap .head{margin:0;text-align:left}
+.faq-list{display:grid}
+.faq-item{padding:22px 0;border-top:1px solid var(--line)}
+.faq-item:last-child{border-bottom:1px solid var(--line)}
+.faq-item h3{margin:0 0 8px;font-size:18px;letter-spacing:-.01em}
+.faq-item p{margin:0;color:var(--muted);font-size:15.5px}
+.team-grid{display:grid;grid-template-columns:repeat(var(--cols,3),minmax(0,1fr));gap:22px}
+.member{margin:0;display:flex;flex-direction:column;gap:10px}
+.member-photo{aspect-ratio:3/3.6;border-radius:calc(var(--radius)*.8);overflow:hidden;border:1px solid var(--line);background:var(--surface)}
+.member h3{margin:4px 0 0;font-size:18px}
+.member span{color:var(--muted);font-size:14.5px}
+.timeline{display:grid;border-left:2px solid var(--line);padding-left:26px;margin-left:6px}
+.tl-item{position:relative;padding:0 0 30px}
+.tl-item::before{content:"";position:absolute;left:-33px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--bg)}
+.tl-item:last-child{padding-bottom:0}
+.tl-date{font-family:var(--font-h);font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.tl-item h3{margin:6px 0 4px;font-size:20px}
+.tl-item p{margin:0;color:var(--muted)}
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+.table{width:100%;border-collapse:collapse;min-width:560px}
+.table th,.table td{padding:14px 18px;text-align:left;border-top:1px solid var(--line);font-size:15.5px}
+.table thead th{border-top:0;font-family:var(--font-h);font-size:14px;background:rgba(127,127,127,.06)}
+.table tbody tr:nth-child(even){background:rgba(127,127,127,.04)}
+.table td:first-child{font-weight:600}
+.prose{max-width:760px}
+.prose.align-center{margin:0 auto;text-align:center}
+.prose p{white-space:pre-line;color:var(--muted);font-size:17.5px}
+.video-box{position:relative;aspect-ratio:16/9;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);margin:0 0 16px}
+.video-box .play{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
+.video-box .play::before{content:"";width:74px;height:74px;border-radius:50%;background:rgba(0,0,0,.55);border:2px solid rgba(255,255,255,.9)}
+.video-box .play::after{content:"";position:absolute;border-left:20px solid #fff;border-top:12px solid transparent;border-bottom:12px solid transparent;margin-left:5px}
+.video-link{position:absolute;left:50%;bottom:18px;transform:translateX(-50%)}
+.subscribe-box{background:var(--surface);border:1px solid var(--line);border-radius:calc(var(--radius)*1.1);padding:clamp(30px,5vw,60px);text-align:center}
+.sub-form{display:flex;gap:10px;max-width:460px;margin:24px auto 12px;flex-wrap:wrap}
+.sub-form input{flex:1;min-width:180px;padding:13px 16px;border-radius:calc(var(--radius)*.5);border:1px solid var(--line-strong);background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:15.5px}
+.sub-note{font-size:12.5px;color:var(--muted);margin:0}
+.testimonials{display:grid;grid-template-columns:repeat(var(--cols,3),minmax(0,1fr));gap:18px}
+.testimonial{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:26px;display:flex;flex-direction:column;gap:14px}
+.testimonial p{margin:0;font-size:16px;line-height:1.55}
+.testimonial .who{display:flex;flex-direction:column;gap:1px;margin-top:auto}
+.testimonial .who strong{font-size:14.5px}
+.testimonial .who span{font-size:13px;color:var(--muted)}
+@media (max-width:880px){.faq-wrap{grid-template-columns:1fr}.team-grid,.testimonials{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:620px){.team-grid,.testimonials{grid-template-columns:1fr}}
 .page[hidden]{display:none}
 .boxed{border:1px solid var(--line)}
 .shadowed{box-shadow:0 34px 80px -52px ${rgba(t.text, 0.6)}}

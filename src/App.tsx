@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { buildHtml } from './render';
 import {
   BLOCK_LABELS,
+  FONT_PAIRS,
   PALETTES,
   STORAGE_KEY,
+  STYLE_PRESETS,
   TEMPLATES,
   createBlock,
   createPage,
@@ -14,6 +16,8 @@ import {
   type Template,
 } from './templates';
 import { CATEGORY_LABELS, FONTS, loadAllFonts } from './fonts';
+import AiPanel from './AiPanel';
+import type { AiAction } from './ai';
 import type { Block, BlockBox, BlockType, Msg, Page, SiteDoc } from './types';
 
 /* --------------------------------- helpers -------------------------------- */
@@ -118,7 +122,15 @@ const DEVICES = [
 ] as const;
 type DeviceId = (typeof DEVICES)[number]['id'];
 
-const GRID_TYPES: BlockType[] = ['features', 'gallery', 'stats', 'pricing'];
+const GRID_TYPES: BlockType[] = ['features', 'gallery', 'stats', 'pricing', 'team', 'testimonials'];
+
+const findBlock = (d: SiteDoc, id: string): Block | null => {
+  for (const page of d.pages) {
+    const block = page.blocks.find((b) => b.id === id);
+    if (block) return block;
+  }
+  return null;
+};
 
 const uniqueSlug = (base: string, used: Set<string>): string => {
   let slug = base || 'page';
@@ -524,7 +536,7 @@ export default function App() {
   const [rev, setRev] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [device, setDevice] = useState<DeviceId>('desktop');
-  const [tab, setTab] = useState<'pages' | 'templates' | 'blocks' | 'fonts' | 'style'>('templates');
+  const [tab, setTab] = useState<'pages' | 'templates' | 'blocks' | 'fonts' | 'style' | 'ai'>('templates');
   const [frameH, setFrameH] = useState(1100);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
@@ -773,6 +785,136 @@ export default function App() {
     });
   };
 
+  /* ------------------------------- AI actions ------------------------------ */
+
+  const runAiActions = (actions: AiAction[]): string => {
+    if (!actions.length) return 'Изменений нет';
+    const log: string[] = [];
+    let selectId: string | null = null;
+    apply((d) => {
+      for (const action of actions.slice(0, 40)) {
+        const arg = typeof action.page === 'string' ? action.page : '';
+        const page = d.pages.find((p) => p.id === arg || p.name === arg) ?? pageOf(d);
+        switch (action.op) {
+          case 'add_block': {
+            const type = String(action.type ?? '') as BlockType;
+            if (!(type in BLOCK_LABELS)) {
+              log.push(`пропустил блок «${type}»`);
+              break;
+            }
+            const block = createBlock(type);
+            const after = typeof action.after === 'string' ? page.blocks.findIndex((b) => b.id === action.after) : -1;
+            page.blocks.splice(after >= 0 ? after + 1 : page.blocks.length, 0, block);
+            selectId = block.id;
+            log.push(`+ ${BLOCK_LABELS[type].name}`);
+            break;
+          }
+          case 'update_block': {
+            const block = findBlock(d, String(action.id ?? ''));
+            const path = typeof action.path === 'string' ? action.path : '';
+            if (!block || !path) break;
+            setPath(block, path, action.value);
+            log.push(`${BLOCK_LABELS[block.type].name}: ${path}`);
+            break;
+          }
+          case 'delete_block': {
+            const id = String(action.id ?? '');
+            for (const p of d.pages) p.blocks = p.blocks.filter((b) => b.id !== id);
+            log.push('− блок');
+            break;
+          }
+          case 'duplicate_block': {
+            const id = String(action.id ?? '');
+            for (const p of d.pages) {
+              const i = p.blocks.findIndex((b) => b.id === id);
+              if (i >= 0) {
+                p.blocks.splice(i + 1, 0, { ...clone(p.blocks[i]), id: uid() });
+                log.push('⧉ блок');
+                break;
+              }
+            }
+            break;
+          }
+          case 'move_block': {
+            const block = findBlock(d, String(action.id ?? ''));
+            if (!block) break;
+            const owner = d.pages.find((p) => p.blocks.some((b) => b.id === block.id));
+            if (!owner) break;
+            const from = owner.blocks.findIndex((b) => b.id === block.id);
+            const to = typeof action.to === 'number'
+              ? action.to
+              : from + (Number(action.dir) === -1 ? -1 : 1);
+            if (to < 0 || to >= owner.blocks.length) break;
+            const [moved] = owner.blocks.splice(from, 1);
+            owner.blocks.splice(to, 0, moved);
+            log.push('↑↓ блок');
+            break;
+          }
+          case 'add_page': {
+            const name = String(action.name ?? 'Новая страница').trim() || 'Новая страница';
+            const used = new Set(d.pages.map((p) => p.slug));
+            const pg = createPage(name, uniqueSlug(slugify(name) || `page-${d.pages.length + 1}`, used));
+            d.pages.push(pg);
+            d.current = pg.id;
+            log.push(`+ страница «${name}»`);
+            break;
+          }
+          case 'rename_page': {
+            const pg = d.pages.find((p) => p.id === action.id);
+            if (!pg) break;
+            pg.name = String(action.name ?? pg.name);
+            log.push(`страница → «${pg.name}»`);
+            break;
+          }
+          case 'delete_page': {
+            if (d.pages.length < 2) break;
+            const id = String(action.id ?? '');
+            d.pages = d.pages.filter((p) => p.id !== id);
+            if (!d.pages.some((p) => p.id === d.current)) d.current = d.pages[0].id;
+            log.push('− страница');
+            break;
+          }
+          case 'set_page': {
+            const pg = d.pages.find((p) => p.id === action.id || p.name === action.id);
+            if (pg) d.current = pg.id;
+            break;
+          }
+          case 'set_theme': {
+            const patch = action.patch;
+            if (patch && typeof patch === 'object') {
+              d.theme = { ...d.theme, ...(patch as Partial<SiteDoc['theme']>) };
+              log.push('тема');
+            }
+            break;
+          }
+          case 'apply_style': {
+            const style = STYLE_PRESETS.find((s) => s.id === action.id);
+            if (!style) break;
+            d.theme = { ...style.theme };
+            log.push(`стиль «${style.name}»`);
+            break;
+          }
+          case 'apply_template': {
+            const template = TEMPLATES.find((t) => t.id === action.id);
+            if (!template) break;
+            const next = docFromTemplate(template);
+            d.name = next.name;
+            d.theme = next.theme;
+            d.pages = next.pages;
+            d.current = next.current;
+            d.templateId = template.id;
+            log.push(`шаблон «${template.name}»`);
+            break;
+          }
+          default:
+            break;
+        }
+      }
+    });
+    if (selectId) setSelected(selectId);
+    return log.slice(0, 6).join(' · ') || 'Готово';
+  };
+
   /* -------------------------------- project -------------------------------- */
 
   const useTemplate = (t: Template) => {
@@ -816,6 +958,12 @@ export default function App() {
   const openPages = () => {
     setTab('pages');
     setDrawer('rail');
+  };
+
+  const openAi = () => {
+    setTab('ai');
+    setDrawer('rail');
+    setWelcome(false);
   };
 
   const resetProject = () => {
@@ -966,6 +1114,9 @@ export default function App() {
             </button>
             <button className={tab === 'style' ? 'active' : ''} onClick={() => setTab('style')}>
               Стиль
+            </button>
+            <button className={tab === 'ai' ? 'active' : ''} onClick={() => setTab('ai')}>
+              ИИ
             </button>
           </div>
 
@@ -1124,6 +1275,8 @@ export default function App() {
               </>
             )}
 
+            {tab === 'ai' && <AiPanel doc={doc} onActions={runAiActions} />}
+
             {tab === 'fonts' && (
               <>
                 <p className="panel-lead">
@@ -1167,7 +1320,52 @@ export default function App() {
 
             {tab === 'style' && (
               <>
-                <p className="panel-lead">Палитры и геометрия. Цвета можно подобрать вручную.</p>
+                <p className="panel-lead">Готовые стили, палитры и пары шрифтов. Цвета можно подобрать вручную.</p>
+                <div className="preset-grid">
+                  {STYLE_PRESETS.map((s) => (
+                    <button
+                      key={s.id}
+                      className="preset"
+                      onClick={() => {
+                        apply((d) => {
+                          d.theme = { ...s.theme };
+                        });
+                      }}
+                    >
+                      <span
+                        className="preset-preview"
+                        style={{ background: s.theme.bg, color: s.theme.text }}
+                      >
+                        <i style={{ background: s.theme.accent }} />
+                        <em style={{ fontFamily: `'${s.theme.fontHeading}', serif` }}>Aa</em>
+                      </span>
+                      <span className="preset-name">{s.name}</span>
+                      <span className="preset-tags">{s.tags.slice(0, 2).join(' · ')}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="panel-head">
+                  <span>Пары шрифтов</span>
+                </div>
+                <div className="pair-list">
+                  {FONT_PAIRS.map((p) => (
+                    <button
+                      key={p.name}
+                      className="pair"
+                      onClick={() => patchTheme({ fontHeading: p.heading, fontBody: p.body })}
+                    >
+                      <span className="pair-name">{p.name}</span>
+                      <span className="pair-fonts">
+                        <em style={{ fontFamily: `'${p.heading}', serif` }}>{p.heading}</em>
+                        <span style={{ fontFamily: `'${p.body}', sans-serif` }}>{p.body}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <div className="panel-head">
+                  <span>Палитры</span>
+                  <span className="count">{PALETTES.length}</span>
+                </div>
                 <div className="palette-grid">
                   {PALETTES.map((p) => (
                     <button
@@ -1384,20 +1582,21 @@ export default function App() {
             <p className="welcome-lead">
               Конструктор сайтов прямо в браузере. Собирайте страницы из готовых секций, правьте текст кликом на
               холсте, задавайте каждому блоку свои ширину, высоту, скругление и фон — и добавляйте сколько угодно
-              страниц. Готовый сайт скачивается одним HTML-файлом.
+              страниц. А если не хочется делать руками, попросите ИИ-помощника: он подключён бесплатно и умеет
+              менять блоки, тексты и стили по обычному запросу.
             </p>
             <div className="welcome-points">
               <div>
-                <strong>6</strong>
+                <strong>{TEMPLATES.length}</strong>
                 <span>готовых шаблонов</span>
               </div>
               <div>
-                <strong>11</strong>
+                <strong>{Object.keys(BLOCK_LABELS).length}</strong>
                 <span>типов блоков</span>
               </div>
               <div>
-                <strong>25</strong>
-                <span>шрифтов с кириллицей</span>
+                <strong>{STYLE_PRESETS.length}</strong>
+                <span>готовых стилей</span>
               </div>
               <div>
                 <strong>∞</strong>
@@ -1410,6 +1609,9 @@ export default function App() {
               </button>
               <button className="btn ghost big" onClick={openTemplates}>
                 Выбрать шаблон
+              </button>
+              <button className="btn ghost big" onClick={openAi}>
+                ✦ ИИ-помощник
               </button>
             </div>
             {doc.pages.some((p) => p.blocks.length > 0) && (

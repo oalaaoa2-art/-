@@ -25,13 +25,24 @@ const img = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=c
 
 export const BLOCK_LABELS: Record<BlockType, { name: string; icon: string; hint: string }> = {
   nav: { name: 'Шапка сайта', icon: '▤', hint: 'Логотип, меню и кнопка' },
+  banner: { name: 'Плашка-объявление', icon: '▬', hint: 'Тонкая полоса с кнопкой' },
   hero: { name: 'Первый экран', icon: '✦', hint: 'Заголовок, подзаголовок, кнопки' },
+  logos: { name: 'Логотипы клиентов', icon: '▥', hint: 'Полоса брендов и партнёров' },
   features: { name: 'Преимущества', icon: '▦', hint: 'Сетка карточек с иконками' },
   split: { name: 'Текст с фото', icon: '◧', hint: 'Две колонки и список' },
   gallery: { name: 'Галерея', icon: '▩', hint: 'Сетка работ или фотографий' },
   stats: { name: 'Цифры', icon: '＃', hint: 'Крупные метрики' },
+  steps: { name: 'Этапы работы', icon: '⌁', hint: 'Нумерованные шаги' },
   pricing: { name: 'Тарифы', icon: '⌘', hint: 'Три плана и кнопки' },
-  quote: { name: 'Цитата', icon: '❝', hint: 'Отзыв клиента' },
+  quote: { name: 'Цитата', icon: '❝', hint: 'Один отзыв крупно' },
+  testimonials: { name: 'Отзывы', icon: '❞', hint: 'Сетка отзывов клиентов' },
+  team: { name: 'Команда', icon: '☺', hint: 'Люди с фото и ролями' },
+  timeline: { name: 'Хронология', icon: '⌛', hint: 'Даты и события' },
+  table: { name: 'Таблица сравнения', icon: '▦', hint: 'Колонки, строки, галочки' },
+  faq: { name: 'Вопросы и ответы', icon: '?', hint: 'Список вопросов с ответами' },
+  text: { name: 'Текстовый раздел', icon: '¶', hint: 'Заголовок и текст без сетки' },
+  video: { name: 'Видео', icon: '▶', hint: 'Постер с кнопкой воспроизведения' },
+  subscribe: { name: 'Подписка', icon: '✎', hint: 'Форма подписки на письма' },
   cta: { name: 'Призыв', icon: '➜', hint: 'Яркий блок с кнопками' },
   contact: { name: 'Контакты', icon: '✉', hint: 'Данные и форма' },
   footer: { name: 'Подвал', icon: '▁', hint: 'Ссылки и копирайт' },
@@ -172,6 +183,118 @@ export function createBlock(type: BlockType): Block {
         text: 'Небольшая подпись о проекте.',
         links: ['Наверх', 'Политика', 'Контакты'],
         note: `© ${new Date().getFullYear()} Новый проект. Все права защищены.`,
+      };
+    case 'banner':
+      return { id, type, text: 'Бесплатная доставка при заказе от 3 000 ₽', cta: 'Подробнее' };
+    case 'logos':
+      return { id, type, title: 'Нам доверяют', logos: ['Север', 'Квант', 'Формат', 'Волна', 'Тепло'] };
+    case 'steps':
+      return {
+        id,
+        type,
+        kicker: 'Как это работает',
+        title: 'Три шага до результата',
+        subtitle: '',
+        items: [
+          { title: 'Заявка', text: 'Расскажите о задаче в двух предложениях.' },
+          { title: 'План', text: 'Предложим решение и фиксированную смету.' },
+          { title: 'Запуск', text: 'Сделаем работу и передадим всё вам.' },
+        ],
+      };
+    case 'faq':
+      return {
+        id,
+        type,
+        kicker: 'Вопросы',
+        title: 'Часто спрашивают',
+        subtitle: '',
+        items: [
+          { q: 'Сколько это стоит?', a: 'Стоимость зависит от объёма. Напишите нам — посчитаем точно.' },
+          { q: 'Сколько времени занимает?', a: 'Простые проекты запускаем за неделю, сложные — за месяц.' },
+          { q: 'Можно ли внести правки?', a: 'Да, две итерации правок входят в стоимость.' },
+        ],
+      };
+    case 'team':
+      return {
+        id,
+        type,
+        kicker: 'Команда',
+        title: 'Люди, которые делают работу',
+        subtitle: '',
+        people: [
+          { name: 'Анна Смирнова', role: 'основательница', photo: img('photo-1494790108377-be9c29b29330') },
+          { name: 'Павел Ким', role: 'дизайнер', photo: img('photo-1500648767791-00dcc994a43e') },
+          { name: 'Ирина Волкова', role: 'разработчица', photo: img('photo-1534528741775-53994a69daeb') },
+        ],
+      };
+    case 'timeline':
+      return {
+        id,
+        type,
+        kicker: 'История',
+        title: 'Как мы росли',
+        items: [
+          { date: '2021', title: 'Первый клиент', text: 'Начали вдвоём с одним проектом и одним ноутбуком.' },
+          { date: '2023', title: 'Своя команда', text: 'Собрали команду из шести человек и запустили 40 проектов.' },
+          { date: '2026', title: 'Новая студия', text: 'Переехали в собственное пространство в центре города.' },
+        ],
+      };
+    case 'table':
+      return {
+        id,
+        type,
+        title: 'Сравните варианты',
+        subtitle: '',
+        cols: ['Старт', 'Про', 'Студия'],
+        rows: [
+          { label: 'Проектов', cells: ['1', '10', 'Безлимит'] },
+          { label: 'Экспорт HTML', cells: ['Да', 'Да', 'Да'] },
+          { label: 'Поддержка', cells: ['Почта', 'Чат', 'Выделенный менеджер'] },
+          { label: 'Сроки', cells: ['—', '1 день', 'Свой план'] },
+        ],
+      };
+    case 'text':
+      return {
+        id,
+        type,
+        kicker: 'Подробнее',
+        title: 'Заголовок раздела',
+        text: 'Пара абзацев свободного текста: история проекта, подход к работе или важная мысль.\n\nВторой абзац помогает не перегружать остальные блоки.',
+        align: 'left',
+      };
+    case 'video':
+      return {
+        id,
+        type,
+        kicker: 'Видео',
+        title: 'Посмотрите, как это работает',
+        text: '',
+        poster: img('photo-1492691527719-9d1e07e534b4'),
+        videoUrl: '',
+      };
+    case 'subscribe':
+      return {
+        id,
+        type,
+        kicker: 'Письма',
+        title: 'Раз в неделю — письмо по делу',
+        text: 'Без рекламы и спама. Отписаться можно одним кликом.',
+        placeholder: 'you@example.com',
+        cta: 'Подписаться',
+        note: 'Нажимая кнопку, вы соглашаетесь с политикой конфиденциальности.',
+      };
+    case 'testimonials':
+      return {
+        id,
+        type,
+        kicker: 'Отзывы',
+        title: 'Что говорят клиенты',
+        subtitle: '',
+        items: [
+          { quote: 'Всё сделали быстро и без лишних согласований.', author: 'Мария К.', role: 'студия «Тепло»' },
+          { quote: 'Понравился подход: сначала вопросы, потом решение.', author: 'Игорь Н.', role: 'кофейня «Угол»' },
+          { quote: 'Результат окупился в первый месяц — серьёзно.', author: 'Олег Д.', role: 'Nexus' },
+        ],
       };
     default:
       return { id, type };
@@ -783,6 +906,530 @@ export const TEMPLATES: Template[] = [
       },
     ],
   },
+  {
+    id: 'clinic',
+    name: 'Клиника',
+    tagline: 'Медицинский центр: спокойствие, врачи и запись',
+    tags: ['Медицина', 'Запись', 'Доверие'],
+    theme: baseTheme({
+      bg: '#f7fbfa',
+      surface: '#ffffff',
+      text: '#102523',
+      muted: '#587a74',
+      accent: '#0f9d76',
+      accentText: '#ffffff',
+      fontHeading: 'Bitter',
+      fontBody: 'Inter',
+      radius: 16,
+      maxWidth: 1120,
+    }),
+    blocks: () => [
+      { id: uid(), type: 'nav', brand: 'Клиника «Норма»', links: ['Услуги', 'Врачи', 'Цены'], cta: 'Записаться' },
+      {
+        id: uid(),
+        type: 'hero',
+        kicker: 'Медицинский центр в центре города',
+        title: 'Спокойная медицина без очередей',
+        subtitle: 'Внимательные врачи, понятные объяснения и приём точно в назначенное время. Работаем с взрослыми и детьми.',
+        cta: 'Записаться на приём',
+        cta2: 'Наши врачи',
+        image: img('photo-1576091160399-112ba8d25d1d'),
+      },
+      {
+        id: uid(),
+        type: 'stats',
+        title: '',
+        items: [
+          { value: '18', label: 'врачей разных специальностей' },
+          { value: '12 лет', label: 'работаем в районе' },
+          { value: '4,9', label: 'средняя оценка пациентов' },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'features',
+        kicker: 'Почему к нам',
+        title: 'Всё, чтобы приём прошёл спокойно',
+        subtitle: '',
+        items: [
+          { icon: '◷', title: 'Приём по времени', text: 'Записываем с интервалом, поэтому в коридоре не нужно ждать.' },
+          { icon: '◈', title: 'Понятные назначения', text: 'Объясняем диагноз и план лечения простыми словами, без запугивания.' },
+          { icon: '☎', title: 'Напоминания', text: 'Присылаем смс накануне визита и результаты анализов в личный кабинет.' },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'steps',
+        kicker: 'Как попасть',
+        title: 'Запись в три шага',
+        subtitle: '',
+        items: [
+          { title: 'Выберите врача', text: 'Позвоните или напишите — подскажем, к кому идти с вашим вопросом.' },
+          { title: 'Выберите время', text: 'Предложим свободные окна на ближайшие три дня.' },
+          { title: 'Приходите', text: 'Возьмите паспорт и полис. Остальное сделаем сами.' },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'faq',
+        kicker: 'Вопросы',
+        title: 'Частые вопросы пациентов',
+        subtitle: '',
+        items: [
+          { q: 'Работаете ли вы по ДМС?', a: 'Да, с большинством крупных страховых. Уточните свою программу по телефону.' },
+          { q: 'Можно ли прийти без записи?', a: 'Можно, но время ожидания может быть больше. Лучше записаться заранее.' },
+          { q: 'Есть ли детский приём?', a: 'Да, педиатр и детский невролог принимают каждый день, кроме воскресенья.' },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'contact',
+        kicker: 'Контакты',
+        title: 'Запишитесь на приём',
+        text: 'Администратор ответит в течение рабочего дня и подберёт удобное время.',
+        email: 'hello@norma.clinic',
+        phone: '+7 495 120-45-67',
+        address: 'Москва, ул. Покровка, 27',
+      },
+      {
+        id: uid(),
+        type: 'footer',
+        brand: 'Клиника «Норма»',
+        text: 'Медицинский центр для всей семьи.',
+        links: ['Лицензии', 'Врачи', 'Контакты'],
+        note: '© 2026 Клиника «Норма». Собрано в Реакторе.',
+      },
+    ],
+  },
+  {
+    id: 'fitness',
+    name: 'Фитнес',
+    tagline: 'Зал и тренировки: тёмный фон и кислотный акцент',
+    tags: ['Спорт', 'Тёмная тема', 'Энергия'],
+    theme: baseTheme({
+      bg: '#0b0f0c',
+      surface: '#131a15',
+      text: '#f2f7f2',
+      muted: '#9db0a2',
+      accent: '#b7f34a',
+      accentText: '#0b0f0c',
+      fontHeading: 'Oswald',
+      fontBody: 'Manrope',
+      radius: 8,
+      maxWidth: 1160,
+    }),
+    blocks: () => [
+      { id: uid(), type: 'nav', brand: 'FORM', links: ['Тренировки', 'Тренеры', 'Цены'], cta: 'Пробное занятие' },
+      {
+        id: uid(),
+        type: 'hero',
+        kicker: 'Зал на Пресне',
+        title: 'Сильнее, чем вчера',
+        subtitle: 'Круглосуточный зал, групповые занятия и тренер, который помнит вашу цель. Без очередей к тренажёрам.',
+        cta: 'Первое занятие бесплатно',
+        cta2: 'Расписание',
+        image: img('photo-1534438327276-14e5300c3a48'),
+      },
+      {
+        id: uid(),
+        type: 'features',
+        kicker: 'Что внутри',
+        title: 'Три причины не бросать',
+        subtitle: '',
+        items: [
+          { icon: '⚡', title: 'Открыто 24/7', text: 'Приходите в удобное время — зал никогда не закрывается.' },
+          { icon: '◉', title: 'План под вас', text: 'Тренер собирает программу под цель и корректирует раз в месяц.' },
+          { icon: '♡', title: 'Без давления', text: 'Никто не продаёт годовые абонементы на первом визите.' },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'pricing',
+        kicker: 'Абонементы',
+        title: 'Выберите свой ритм',
+        subtitle: 'Заморозка и возврат — без штрафов.',
+        plans: [
+          { name: 'Разовое', price: '700 ₽', period: '/ занятие', text: 'Без обязательств', features: ['Доступ в зал', 'Раздевалка и душ'], cta: 'Купить' },
+          { name: 'Месяц', price: '3 900 ₽', period: '/ месяц', text: 'Самый популярный', features: ['Безлимитный зал', 'Групповые занятия', 'Замеры раз в месяц'], cta: 'Оформить', featured: true },
+          { name: 'Год', price: '29 000 ₽', period: '/ год', text: 'Выгода 38%', features: ['Всё из «Месяца»', 'Две персональные тренировки', 'Заморозка на месяц'], cta: 'Выбрать' },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'testimonials',
+        kicker: 'Отзывы',
+        title: 'Что говорят наши люди',
+        subtitle: '',
+        items: [
+          { quote: 'Хожу полгода и наконец перестал искать отговорки. Тренер спокойно возвращает в режим.', author: 'Артём', role: 'участник с 2024' },
+          { quote: 'Утром пусто, вечером тоже есть место. Это редкость для зала в центре.', author: 'Ксения', role: 'участница с 2023' },
+          { quote: 'Ни разу не продали лишнего. Приятно удивлён.', author: 'Дмитрий', role: 'участник с 2025' },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'cta',
+        title: 'Первая тренировка — бесплатно',
+        text: 'Приходите в любое время, покажитесь администратору и занимайтесь. Без карты и обещаний.',
+        cta: 'Записаться',
+        cta2: 'Как добраться',
+      },
+      {
+        id: uid(),
+        type: 'footer',
+        brand: 'FORM',
+        text: 'Круглосуточный зал и тренировки без давления.',
+        links: ['Расписание', 'Тренеры', 'Telegram'],
+        note: '© 2026 FORM. Собрано в Реакторе.',
+      },
+    ],
+  },
+  {
+    id: 'law',
+    name: 'Право',
+    tagline: 'Юридическая фирма: антиква, сдержанность, доверие',
+    tags: ['Юристы', 'Консалтинг', 'Премиум'],
+    theme: baseTheme({
+      bg: '#f4f6fb',
+      surface: '#ffffff',
+      text: '#101828',
+      muted: '#5b6b82',
+      accent: '#1e3a8a',
+      accentText: '#ffffff',
+      fontHeading: 'Playfair Display',
+      fontBody: 'PT Serif',
+      radius: 4,
+      maxWidth: 1140,
+    }),
+    blocks: () => [
+      { id: uid(), type: 'nav', brand: 'Верстов и партнёры', links: ['Практики', 'Команда', 'Кейсы'], cta: 'Консультация' },
+      {
+        id: uid(),
+        type: 'hero',
+        kicker: 'Юридическая фирма, Москва',
+        title: 'Спокойно решаем сложные правовые задачи',
+        subtitle: 'Сопровождаем сделки, споры и корпоративные вопросы. Говорим понятно и называем сроки заранее.',
+        cta: 'Записаться на консультацию',
+        cta2: 'Наши практики',
+        image: '',
+      },
+      { id: uid(), type: 'logos', title: 'Нам доверяют', logos: ['Sever', 'Kvant', 'Format', 'Volna', 'Tempo', 'Nord'] },
+      {
+        id: uid(),
+        type: 'split',
+        kicker: 'Подход',
+        title: 'Сначала разбираемся, потом советуем',
+        text: 'На первой встрече задаём неудобные вопросы и честно говорим, если дело проще решить без суда. Это экономит клиентам месяцы и деньги.',
+        image: img('photo-1589829545856-d10d557cf95f'),
+        bullets: ['Фиксированная стоимость этапа', 'Один партнёр на проект', 'Отчёт о каждом шаге'],
+        reverse: false,
+      },
+      {
+        id: uid(),
+        type: 'team',
+        kicker: 'Команда',
+        title: 'Юристы, которые ведут дело',
+        subtitle: '',
+        people: [
+          { name: 'Андрей Верстов', role: 'управляющий партнёр', photo: img('photo-1560250097-0b93528c311a') },
+          { name: 'Елена Радова', role: 'корпоративная практика', photo: img('photo-1573496359142-b8d87734a5a2') },
+          { name: 'Михаил Тихонов', role: 'судебные споры', photo: img('photo-1519085360753-af0119f7cbe7') },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'faq',
+        kicker: 'Вопросы',
+        title: 'Что обычно спрашивают',
+        subtitle: '',
+        items: [
+          { q: 'Сколько стоит консультация?', a: 'Первая встреча — 5 000 ₽. Если берём дело, стоимость входит в общий гонорар.' },
+          { q: 'Работаете ли вы в других городах?', a: 'Да, ведём дела по всей России и представляем клиентов в арбитраже дистанционно.' },
+          { q: 'Можно ли получить срочную помощь?', a: 'Да, у нас есть срочная линия для действующих клиентов.' },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'contact',
+        kicker: 'Связаться',
+        title: 'Обсудим вашу ситуацию',
+        text: 'Опишите задачу в двух предложениях — ответим в течение рабочего дня и предложим следующий шаг.',
+        email: 'office@verstov.legal',
+        phone: '+7 495 780-22-10',
+        address: 'Москва, БЦ «Романов», ул. Тверская, 12',
+      },
+      {
+        id: uid(),
+        type: 'footer',
+        brand: 'Верстов и партнёры',
+        text: 'Юридическая фирма полного цикла.',
+        links: ['Практики', 'Команда', 'Политика'],
+        note: '© 2026 «Верстов и партнёры». Собрано в Реакторе.',
+      },
+    ],
+  },
+  {
+    id: 'course',
+    name: 'Курс',
+    tagline: 'Онлайн-школа: программа, оффер и тарифы',
+    tags: ['Обучение', 'Онлайн', 'Продукт'],
+    theme: baseTheme({
+      bg: '#0f1020',
+      surface: '#171a2e',
+      text: '#f4f4ff',
+      muted: '#a6a8c8',
+      accent: '#7c5cff',
+      accentText: '#ffffff',
+      fontHeading: 'Unbounded',
+      fontBody: 'Onest',
+      radius: 22,
+      maxWidth: 1120,
+    }),
+    blocks: () => [
+      { id: uid(), type: 'nav', brand: 'курс.', links: ['Программа', 'Автор', 'Цены'], cta: 'Записаться' },
+      {
+        id: uid(),
+        type: 'hero',
+        kicker: 'Старт потока 1 марта',
+        title: 'Профессия, которой учатся по вечерам',
+        subtitle: 'Восемь недель практики, проверка домашних заданий и помощь с первым проектом. Без воды и мотивационных речей.',
+        cta: 'Забронировать место',
+        cta2: 'Смотреть программу',
+        image: '',
+      },
+      {
+        id: uid(),
+        type: 'steps',
+        kicker: 'Как устроено',
+        title: 'Три части курса',
+        subtitle: '',
+        items: [
+          { title: 'База', text: 'Две недели основ: инструменты, термины и первый маленький проект.' },
+          { title: 'Практика', text: 'Четыре недели заданий с разбором — каждую работу проверяет куратор.' },
+          { title: 'Проект', text: 'Финальные две недели: собираете кейс, который не стыдно показать.' },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'features',
+        kicker: 'Что входит',
+        title: 'Не только видео',
+        subtitle: '',
+        items: [
+          { icon: '✎', title: 'Живые разборы', text: 'Раз в неделю созвон, где можно задать любой вопрос и услышать ответ по своей работе.' },
+          { icon: '◈', title: 'Куратор', text: 'Помогает не бросить и объясняет сложное место ещё раз, если нужно.' },
+          { icon: '◎', title: 'Портфолио', text: 'К концу курса у вас есть готовый проект и обратная связь по нему.' },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'pricing',
+        kicker: 'Участие',
+        title: 'Выберите формат',
+        subtitle: 'Можно вернуть деньги в первые семь дней.',
+        plans: [
+          { name: 'Записи', price: '14 900 ₽', period: '/ курс', text: 'Смотреть в своём темпе', features: ['Все уроки', 'Чат потока', 'Доступ на год'], cta: 'Купить' },
+          { name: 'С куратором', price: '29 900 ₽', period: '/ курс', text: 'Лучший результат', features: ['Всё из «Записей»', 'Проверка домашних', 'Живые разборы', 'Помощь с проектом'], cta: 'Выбрать', featured: true },
+          { name: 'Команда', price: 'по запросу', period: '', text: 'Для компаний', features: ['Места для команды', 'Отчёт о прогрессе', 'Счёт для бухгалтерии'], cta: 'Обсудить' },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'quote',
+        quote: 'Пришла с нуля, через два месяца сделала первый платный проект. Куратор буквально вытащил меня с середины курса, когда я хотела бросить.',
+        author: 'Настя Г.',
+        role: 'выпускница потока #7',
+      },
+      {
+        id: uid(),
+        type: 'cta',
+        title: 'Осталось 12 мест из 60',
+        text: 'На следующем потоке цена будет выше на 20%. Это не уловка, а честное предупреждение.',
+        cta: 'Забронировать',
+        cta2: 'Задать вопрос',
+      },
+      {
+        id: uid(),
+        type: 'footer',
+        brand: 'курс.',
+        text: 'Онлайн-курсы без воды и мотивации.',
+        links: ['Программа', 'Автор', 'Telegram'],
+        note: '© 2026 «курс.». Собрано в Реакторе.',
+      },
+    ],
+  },
+  {
+    id: 'event',
+    name: 'Событие',
+    tagline: 'Свадьба, конференция или встреч: тёплая антиква',
+    tags: ['Событие', 'Тепло', 'Антиква'],
+    theme: baseTheme({
+      bg: '#fdf6ee',
+      surface: '#fff9f2',
+      text: '#2a1a12',
+      muted: '#7b6357',
+      accent: '#c2410c',
+      accentText: '#fff8f1',
+      fontHeading: 'Cormorant',
+      fontBody: 'Manrope',
+      radius: 20,
+      maxWidth: 1100,
+    }),
+    blocks: () => [
+      { id: uid(), type: 'nav', brand: 'Тёпло', links: ['Программа', 'Место', 'Вопросы'], cta: 'Забронировать' },
+      { id: uid(), type: 'banner', text: 'Раннее бронирование до 1 мая — минус 15%', cta: 'Забронировать' },
+      {
+        id: uid(),
+        type: 'hero',
+        kicker: '14 июня · загородный дом «Сосны»',
+        title: 'День, который мы придумаем вместе',
+        subtitle: 'Церемония, ужин на веранде и танцы до рассвета. Для тех, кто любит тепло и не любит официоз.',
+        cta: 'Забронировать дату',
+        cta2: 'Смотреть программу',
+        image: img('photo-1519741497674-611481863552'),
+      },
+      {
+        id: uid(),
+        type: 'timeline',
+        kicker: 'Программа',
+        title: 'Как пройдёт день',
+        items: [
+          { date: '16:00', title: 'Сбор гостей', text: 'Прохладительные напитки, лёгкие закуски и знакомство.' },
+          { date: '17:30', title: 'Церемония', text: 'Короткая, в саду, под открытым небом. Без речей на сорок минут.' },
+          { date: '19:00', title: 'Ужин', text: 'Длинный стол, сезонное меню и тосты, которые не затянутся.' },
+          { date: '21:00', title: 'Танцы', text: 'До последнего гостя. Плейлист собираем вместе с вами.' },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'gallery',
+        kicker: 'Атмосфера',
+        title: 'Как это выглядело раньше',
+        subtitle: '',
+        images: [
+          { url: img('photo-1478146896981-b80fe463b330'), caption: 'Сосны и длинный стол' },
+          { url: img('photo-1464366400600-7168b8af9bc3'), caption: 'Церемония' },
+          { url: img('photo-1519225421980-715cb0215aed'), caption: 'Вечер' },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'team',
+        kicker: 'Кто помогает',
+        title: 'Команда, которой можно доверить день',
+        subtitle: '',
+        people: [
+          { name: 'Лена Морозова', role: 'организатор', photo: img('photo-1494790108377-be9c29b29330') },
+          { name: 'Миша Соколов', role: 'фотограф', photo: img('photo-1500648767791-00dcc994a43e') },
+          { name: 'Ася Флор', role: 'флорист', photo: img('photo-1534528741775-53994a69daeb') },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'subscribe',
+        kicker: 'Письма',
+        title: 'Оставьте почту — пришлём детали',
+        text: 'Место, схему проезда и меню на выбор. Одно письмо, без рассылок.',
+        placeholder: 'you@example.com',
+        cta: 'Получить письмо',
+        note: 'Почту не передаём третьим лицам.',
+      },
+      {
+        id: uid(),
+        type: 'footer',
+        brand: 'Тёпло',
+        text: 'События, которые не похожи на официальные приёмы.',
+        links: ['Программа', 'Место', 'Telegram'],
+        note: '© 2026 «Тёпло». Собрано в Реакторе.',
+      },
+    ],
+  },
+  {
+    id: 'shop',
+    name: 'Магазин',
+    tagline: 'Бренд одежды и вещей: чёрный, белый и воздух',
+    tags: ['Магазин', 'Одежда', 'Минимализм'],
+    theme: baseTheme({
+      bg: '#ffffff',
+      surface: '#f5f5f3',
+      text: '#141414',
+      muted: '#6b6b66',
+      accent: '#141414',
+      accentText: '#ffffff',
+      fontHeading: 'Raleway',
+      fontBody: 'Onest',
+      radius: 2,
+      maxWidth: 1200,
+    }),
+    blocks: () => [
+      { id: uid(), type: 'nav', brand: 'основа', links: ['Коллекция', 'О бренде', 'Доставка'], cta: 'Корзина' },
+      { id: uid(), type: 'banner', text: 'Бесплатная доставка по России от 5 000 ₽', cta: 'Условия' },
+      {
+        id: uid(),
+        type: 'hero',
+        kicker: 'Коллекция весна–лето',
+        title: 'Вещи, которые носят годами',
+        subtitle: 'Лён, хлопок и шерсть. Честные ткани, спокойные цвета и крой, который не выходит из моды.',
+        cta: 'Смотреть коллекцию',
+        cta2: 'О бренде',
+        image: img('photo-1441986300917-64674bd600d8'),
+      },
+      {
+        id: uid(),
+        type: 'gallery',
+        kicker: 'Новое',
+        title: 'Из коллекции',
+        subtitle: 'Нажмите на фото, чтобы заменить его своим.',
+        images: [
+          { url: img('photo-1523381210434-271e8be1f52b'), caption: 'Рубашка из льна' },
+          { url: img('photo-1542291026-7eec264c27ff'), caption: 'Кеды из переработанного хлопка' },
+          { url: img('photo-1503341504253-dff4815485f1'), caption: 'Худи плотной вязки' },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'features',
+        kicker: 'Почему мы',
+        title: 'Магазин без спешки',
+        subtitle: '',
+        items: [
+          { icon: '◈', title: 'Малые партии', text: 'Не производим лишнего: каждая вещь шьётся ограниченным тиражом.' },
+          { icon: '⇄', title: 'Обмен 60 дней', text: 'Если размер не подошёл — обменяем или вернём деньги.' },
+          { icon: '◎', title: 'Своя доставка', text: 'По Москве привозим на следующий день, по России — за два-три.' },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'testimonials',
+        kicker: 'Отзывы',
+        title: 'Что пишут покупатели',
+        subtitle: '',
+        items: [
+          { quote: 'Льняная рубашка — лучшая покупка года. Сидит ровно так, как на фото.', author: 'Аня', role: 'Москва' },
+          { quote: 'Заказал худи, пришло за день. Плотное, не растянулось после стирки.', author: 'Кирилл', role: 'Санкт-Петербург' },
+          { quote: 'Обменяли размер без вопросов и даже оплатили обратную доставку.', author: 'Марина', role: 'Казань' },
+        ],
+      },
+      {
+        id: uid(),
+        type: 'subscribe',
+        kicker: 'Письма',
+        title: 'Сообщим о новых партиях',
+        text: 'Не чаще раза в месяц. Никакой распродажной суеты.',
+        placeholder: 'you@example.com',
+        cta: 'Подписаться',
+        note: 'Отписаться можно в один клик.',
+      },
+      {
+        id: uid(),
+        type: 'footer',
+        brand: 'основа',
+        text: 'Одежда и вещи из честных тканей.',
+        links: ['Доставка', 'Обмен', 'Контакты'],
+        note: '© 2026 «основа». Собрано в Реакторе.',
+      },
+    ],
+  },
 ];
 
 export const PALETTES: { name: string; bg: string; surface: string; text: string; muted: string; accent: string; accentText: string }[] = [
@@ -796,6 +1443,16 @@ export const PALETTES: { name: string; bg: string; surface: string; text: string
   { name: 'Море', bg: '#f2f7fc', surface: '#ffffff', text: '#0b1a29', muted: '#52697d', accent: '#0a6ebd', accentText: '#ffffff' },
   { name: 'Роза', bg: '#fff7f8', surface: '#fff0f3', text: '#26121a', muted: '#7d5c66', accent: '#d6336c', accentText: '#fff7f8' },
   { name: 'Песок', bg: '#faf6ef', surface: '#fffdf8', text: '#22201b', muted: '#6f6a5f', accent: '#c98a2b', accentText: '#1b1509' },
+  { name: 'Лаванда', bg: '#f7f5ff', surface: '#ffffff', text: '#1d1830', muted: '#6b6485', accent: '#8b5cf6', accentText: '#ffffff' },
+  { name: 'Океан', bg: '#f0f9ff', surface: '#ffffff', text: '#0c2233', muted: '#557387', accent: '#0284c7', accentText: '#ffffff' },
+  { name: 'Графит', bg: '#16181c', surface: '#1f2229', text: '#f2f3f5', muted: '#a2a8b4', accent: '#f97316', accentText: '#16181c' },
+  { name: 'Олива', bg: '#f7f8f1', surface: '#ffffff', text: '#1c2314', muted: '#66705a', accent: '#5b7f2a', accentText: '#ffffff' },
+  { name: 'Вишня', bg: '#fff7f6', surface: '#ffffff', text: '#2a1214', muted: '#7d5f61', accent: '#be123c', accentText: '#ffffff' },
+  { name: 'Небо', bg: '#f5f9ff', surface: '#ffffff', text: '#101a2b', muted: '#5a6a82', accent: '#2563eb', accentText: '#ffffff' },
+  { name: 'Шампань', bg: '#fbf7ef', surface: '#ffffff', text: '#241f18', muted: '#746b5d', accent: '#a37a2a', accentText: '#ffffff' },
+  { name: 'Кибер', bg: '#07101a', surface: '#0d1926', text: '#e6f7ff', muted: '#89a6bb', accent: '#22d3ee', accentText: '#04121c' },
+  { name: 'Розовый кварц', bg: '#fff5f7', surface: '#ffffff', text: '#2b1620', muted: '#80636e', accent: '#db2777', accentText: '#ffffff' },
+  { name: 'Хаки', bg: '#f5f6f0', surface: '#fdfef9', text: '#1b2118', muted: '#646d5c', accent: '#6b7f3a', accentText: '#ffffff' },
 ];
 
 export function docFromTemplate(t: Template): SiteDoc {
@@ -824,5 +1481,120 @@ export function emptyDoc(): SiteDoc {
     templateId: '',
   };
 }
+
+/* --------------------------------- styles --------------------------------- */
+
+export type StylePreset = {
+  id: string;
+  name: string;
+  tagline: string;
+  tags: string[];
+  theme: Theme;
+};
+
+const preset = (
+  id: string,
+  name: string,
+  tagline: string,
+  tags: string[],
+  theme: Partial<Theme>
+): StylePreset => ({ id, name, tagline, tags, theme: baseTheme(theme) });
+
+export const STYLE_PRESETS: StylePreset[] = [
+  preset('aurora-soft', 'Аврора', 'Индиго, крупный гротеск, много воздуха', ['продукт', 'индиго', 'гротеск'], {
+    bg: '#ffffff', surface: '#f5f6ff', text: '#111322', muted: '#5b6178', accent: '#4f46e5', accentText: '#ffffff', fontHeading: 'Unbounded', fontBody: 'Inter', radius: 20, maxWidth: 1160,
+  }),
+  preset('noir-lime', 'Нуар', 'Чёрный фон и кислотный лайм', ['тёмная тема', 'контраст', 'агентство'], {
+    bg: '#0a0a0b', surface: '#131316', text: '#f4f4f2', muted: '#a1a1aa', accent: '#d7ff3e', accentText: '#0a0a0b', fontHeading: 'Unbounded', fontBody: 'Onest', radius: 10, maxWidth: 1200,
+  }),
+  preset('paper-editorial', 'Газета', 'Антиква, тонкие линии, журнальная сетка', ['блог', 'медиа', 'антиква'], {
+    bg: '#fffdf8', surface: '#f4f1e8', text: '#191a1c', muted: '#686b70', accent: '#1d4ed8', accentText: '#ffffff', fontHeading: 'Bitter', fontBody: 'Spectral', radius: 2, maxWidth: 1100,
+  }),
+  preset('terracotta-warm', 'Терракота', 'Тёплый фон, антиква и мягкие формы', ['еда', 'тепло', 'локальный бизнес'], {
+    bg: '#fbf3e8', surface: '#fffaf2', text: '#2c1b10', muted: '#7d6553', accent: '#b4531f', accentText: '#fff8ef', fontHeading: 'Cormorant', fontBody: 'Nunito', radius: 24, maxWidth: 1140,
+  }),
+  preset('mint-clinic', 'Мята', 'Спокойная зелень, ясная типографика', ['медицина', 'сервис', 'доверие'], {
+    bg: '#f7fbfa', surface: '#ffffff', text: '#102523', muted: '#587a74', accent: '#0f9d76', accentText: '#ffffff', fontHeading: 'Bitter', fontBody: 'Inter', radius: 16, maxWidth: 1120,
+  }),
+  preset('ocean-calm', 'Море', 'Голубой акцент, много света', ['сервис', 'финансы', 'спокойствие'], {
+    bg: '#f2f7fc', surface: '#ffffff', text: '#0b1a29', muted: '#52697d', accent: '#0a6ebd', accentText: '#ffffff', fontHeading: 'Manrope', fontBody: 'Inter', radius: 14, maxWidth: 1140,
+  }),
+  preset('plum-night', 'Ночная фиалка', 'Тёмный фиолетовый и нежная антиква', ['премиум', 'тёмная тема', 'красота'], {
+    bg: '#0d0b1f', surface: '#161233', text: '#f1eefe', muted: '#a9a2cf', accent: '#a78bfa', accentText: '#140f2e', fontHeading: 'Playfair Display', fontBody: 'Manrope', radius: 18, maxWidth: 1140,
+  }),
+  preset('graphite-orange', 'Графит', 'Графитовый фон и тёплый оранжевый', ['технологии', 'тёмная тема', 'энергия'], {
+    bg: '#16181c', surface: '#1f2229', text: '#f2f3f5', muted: '#a2a8b4', accent: '#f97316', accentText: '#16181c', fontHeading: 'Oswald', fontBody: 'Manrope', radius: 6, maxWidth: 1180,
+  }),
+  preset('rose-soft', 'Роза', 'Пудровый розовый и тонкая антиква', ['красота', 'свадьба', 'мягкость'], {
+    bg: '#fff7f8', surface: '#fff0f3', text: '#26121a', muted: '#7d5c66', accent: '#d6336c', accentText: '#fff7f8', fontHeading: 'Cormorant', fontBody: 'Manrope', radius: 22, maxWidth: 1120,
+  }),
+  preset('cyber-cyan', 'Кибер', 'Тёмная синева и холодный циан', ['технологии', 'тёмная тема', 'продукт'], {
+    bg: '#07101a', surface: '#0d1926', text: '#e6f7ff', muted: '#89a6bb', accent: '#22d3ee', accentText: '#04121c', fontHeading: 'Tektur', fontBody: 'Rubik', radius: 14, maxWidth: 1160,
+  }),
+  preset('sand-luxe', 'Шампань', 'Песочный фон, золото и антиква', ['премиум', 'юристы', 'услуги'], {
+    bg: '#fbf7ef', surface: '#ffffff', text: '#241f18', muted: '#746b5d', accent: '#a37a2a', accentText: '#ffffff', fontHeading: 'Playfair Display', fontBody: 'Onest', radius: 4, maxWidth: 1140,
+  }),
+  preset('olive-natural', 'Олива', 'Природные оттенки и спокойная антиква', ['эко', 'природа', 'еда'], {
+    bg: '#f7f8f1', surface: '#ffffff', text: '#1c2314', muted: '#66705a', accent: '#5b7f2a', accentText: '#ffffff', fontHeading: 'Cormorant', fontBody: 'Inter', radius: 20, maxWidth: 1120,
+  }),
+  preset('mono-brutal', 'Брутал', 'Чёрное на белом, острые углы, моногарнитура', ['минимализм', 'дизайн', 'контраст'], {
+    bg: '#ffffff', surface: '#f4f4f2', text: '#101010', muted: '#606060', accent: '#101010', accentText: '#ffffff', fontHeading: 'Russo One', fontBody: 'JetBrains Mono', radius: 0, maxWidth: 1200,
+  }),
+  preset('lavender-dream', 'Лаванда', 'Светлый фиолетовый и мягкие скругления', ['красота', 'образование', 'мягкость'], {
+    bg: '#f7f5ff', surface: '#ffffff', text: '#1d1830', muted: '#6b6485', accent: '#8b5cf6', accentText: '#ffffff', fontHeading: 'Comfortaa', fontBody: 'Nunito', radius: 26, maxWidth: 1120,
+  }),
+];
+
+export const FONT_PAIRS: { name: string; heading: string; body: string }[] = [
+  { name: 'Технологично', heading: 'Unbounded', body: 'Inter' },
+  { name: 'Спокойно', heading: 'Manrope', body: 'Onest' },
+  { name: 'Редакционно', heading: 'Playfair Display', body: 'Spectral' },
+  { name: 'Тепло', heading: 'Cormorant', body: 'Nunito' },
+  { name: 'Строго', heading: 'Bitter', body: 'PT Sans' },
+  { name: 'Дерзко', heading: 'Russo One', body: 'Rubik' },
+  { name: 'Литературно', heading: 'Lora', body: 'PT Serif' },
+  { name: 'Мягко', heading: 'Comfortaa', body: 'Nunito' },
+  { name: 'Газетно', heading: 'Oswald', body: 'Merriweather' },
+  { name: 'Код', heading: 'IBM Plex Mono', body: 'JetBrains Mono' },
+];
+
+/* ------------------------------ search hints ------------------------------ */
+
+export const SEARCH_SYNONYMS: Record<string, string[]> = {
+  nav: ['меню', 'шапка', 'навигация', 'логотип', 'ссылки', 'header', 'menu'],
+  banner: ['плашка', 'объявление', 'акция', 'скидка', 'полоса', 'promo', 'topbar'],
+  hero: ['первый экран', 'заголовок', 'обложка', 'баннер', 'главный', 'hero', 'cover'],
+  logos: ['логотипы', 'клиенты', 'партнёры', 'бренды', 'доверие', 'logo'],
+  features: ['преимущества', 'возможности', 'карточки', 'иконки', 'фичи', 'features'],
+  split: ['текст с фото', 'две колонки', 'о проекте', 'описание', 'split', 'about'],
+  gallery: ['галерея', 'фото', 'работы', 'портфолио', 'сетка', 'gallery', 'portfolio'],
+  stats: ['цифры', 'метрики', 'статистика', 'достижения', 'stats', 'numbers'],
+  steps: ['этапы', 'шаги', 'процесс', 'как это работает', 'steps', 'process'],
+  pricing: ['тарифы', 'цены', 'стоимость', 'прайс', 'планы', 'pricing', 'plans'],
+  quote: ['цитата', 'отзыв', 'мнение', 'quote', 'testimonial'],
+  testimonials: ['отзывы', 'клиенты', 'мнения', 'кейсы', 'testimonials', 'reviews'],
+  team: ['команда', 'люди', 'сотрудники', 'врачи', 'спикеры', 'team', 'people'],
+  timeline: ['хронология', 'история', 'даты', 'программа', 'timeline', 'schedule'],
+  table: ['таблица', 'сравнение', 'колонки', 'характеристики', 'table', 'compare'],
+  faq: ['вопросы', 'ответы', 'q&a', 'faq', 'вопрос'],
+  text: ['текст', 'абзацы', 'статья', 'описание', 'text', 'prose'],
+  video: ['видео', 'ролик', 'постер', 'плеер', 'video'],
+  subscribe: ['подписка', 'почта', 'рассылка', 'email', 'subscribe', 'newsletter'],
+  cta: ['призыв', 'кнопка', 'действие', 'баннер', 'cta'],
+  contact: ['контакты', 'форма', 'связь', 'адрес', 'телефон', 'contact'],
+  footer: ['подвал', 'низ', 'копирайт', 'ссылки', 'footer'],
+  aurora: ['saas', 'продукт', 'аналитика', 'стартап', 'индиго'],
+  studio: ['портфолио', 'дизайнер', 'фотограф', 'минимализм', 'бумага'],
+  cafe: ['кофейня', 'еда', 'ресторан', 'тепло', 'локальный бизнес'],
+  noir: ['агентство', 'тёмная тема', 'лайм', 'дерзкий', 'креатив'],
+  editorial: ['журнал', 'блог', 'медиа', 'статьи', 'антиква'],
+  pulse: ['фитнес', 'приложение', 'градиент', 'энергия', 'тренировки'],
+  clinic: ['медицина', 'клиника', 'врачи', 'запись', 'здоровье'],
+  fitness: ['спорт', 'зал', 'тренировки', 'фитнес', 'абонемент'],
+  law: ['юрист', 'право', 'консалтинг', 'адвокат', 'премиум'],
+  course: ['курс', 'обучение', 'школа', 'онлайн', 'образование'],
+  event: ['событие', 'свадьба', 'конференция', 'встреча', 'праздник'],
+  shop: ['магазин', 'одежда', 'товары', 'бренд', 'ecommerce'],
+};
 
 export const STORAGE_KEY = 'reactor.site.v1';
