@@ -803,6 +803,11 @@ export default function App() {
               break;
             }
             const block = createBlock(type);
+            if (action.data && typeof action.data === 'object') {
+              for (const [key, value] of Object.entries(action.data as Record<string, unknown>)) {
+                if (key !== 'id' && key !== 'type') setPath(block, key, value);
+              }
+            }
             const after = typeof action.after === 'string' ? page.blocks.findIndex((b) => b.id === action.after) : -1;
             page.blocks.splice(after >= 0 ? after + 1 : page.blocks.length, 0, block);
             selectId = block.id;
