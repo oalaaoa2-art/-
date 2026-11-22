@@ -1,5 +1,6 @@
 import type { SiteDoc } from './types';
-import { BLOCK_LABELS, STYLE_PRESETS, TEMPLATES } from './templates';
+import { BLOCK_LABELS, LOOKBOOK, PALETTES, STYLE_PRESETS, TEMPLATES } from './templates';
+import { FONTS } from './fonts';
 
 /* -------------------------------- providers -------------------------------- */
 
@@ -159,6 +160,12 @@ export function systemPrompt(doc: SiteDoc): string {
     .join('\n');
   const templates = TEMPLATES.map((t) => `${t.id} — ${t.name}: ${t.tagline}`).join('\n');
   const styles = STYLE_PRESETS.map((s) => `${s.id} — ${s.name}: ${s.tagline}`).join('\n');
+  const looks = LOOKBOOK.map(
+    (l) =>
+      `${l.id} — ${l.name} (для: ${l.bestFor}): ${l.description} Приём: ${l.notes} [шаблон ${l.templateId} + стиль ${l.styleId}]`
+  ).join('\n');
+  const fonts = FONTS.map((f) => f.family).join(', ');
+  const palettes = PALETTES.map((p) => p.name).join(', ');
 
   return `Ты — ИИ-ассистент визуального конструктора сайтов «Реактор». Пользователь просит изменить сайт, а ты возвращаешь JSON с действиями, которые редактор применит автоматически. У тебя есть полный доступ к страницам, блокам, текстам, оформлению и теме сайта.
 
@@ -175,9 +182,12 @@ export function systemPrompt(doc: SiteDoc): string {
 {"op":"rename_page","id":"...","name":"..."}
 {"op":"delete_page","id":"..."}
 {"op":"set_page","id":"..."} — переключить видимую страницу.
-{"op":"set_theme","patch":{"accent":"#7c5cff","radius":18}} — тема сайта.
-{"op":"apply_style","id":"noir-lime"} — готовый стиль (палитра+шрифты).
-{"op":"apply_template","id":"cafe"} — заменить ВЕСЬ сайт шаблоном (осторожно, удаляет текущие страницы).
+{"op":"set_theme","patch":{"accent":"#7c5cff","radius":18}} — точечные правки темы.
+{"op":"apply_style","id":"noir-lime"} — готовый стиль из библиотеки (палитра+шрифты+радиусы).
+{"op":"apply_palette","name":"Мята"} — только цвета из библиотеки палитр.
+{"op":"set_fonts","heading":"Playfair Display","body":"Manrope"} — только шрифты из списка FONTS.
+{"op":"apply_template","id":"cafe"} — заменить ВЕСЬ сайт шаблоном из библиотеки (осторожно, удаляет текущие страницы).
+{"op":"apply_look","id":"quiet-saas"} — ЛУЧШИЙ вариант, когда просят сделать сайт с нуля: подборка = шаблон + подобранный стиль.
 
 ОФОРМЛЕНИЕ БЛОКА через update_block:
 box.width — ширина 30–100 (%); box.maxw — макс. ширина px; box.minh — мин. высота px; box.radius — скругление px; box.bg — "none" | "surface" | "accent" | "#hex"; box.shadow — true/false; box.align — "left" | "center" | "right"; box.padt/box.padb — отступы px.
@@ -186,7 +196,9 @@ cols — число колонок для сеток (features, gallery, stats, 
 ПРАВИЛА:
 - Используй только type из каталога и id из текущего документа. Не придумывай id.
 - Новые блоки создаются через add_block, и всё их содержимое сразу передаётся в data (поля как в текущем документе: title, subtitle, items, people, plans, logos и т. д.). id новых блоков ты не знаешь, поэтому не пытайся менять их через update_block.
-- Если просят «сделай сайт», «нужен лендинг» — используй apply_template, затем уточняй тексты через update_block.
+- Если просят «сделай сайт», «нужен лендинг», «хочу красиво» — сначала выбери одну подборку LOOKBOOK по смыслу (apply_look), затем поправь тексты через update_block. Это главный путь.
+- ИСПОЛЬЗУЙ ТОЛЬКО элементы библиотеки: type блоков, id шаблонов, стилей и подборок, названия шрифтов и палитр. Не выдумывай свои типы, шрифты, палитры или id — такие действия будут отклонены.
+- Шрифты меняются только через set_fonts и только названиями из списка ниже. Палитры — только через apply_palette по точному имени.
 - Если меняешь оформление нескольких блоков — делай это отдельными update_block.
 - Не больше 30 действий. Пиши reply кратко и по делу, без обещаний и извинений.
 
@@ -196,8 +208,17 @@ ${blocks}
 ШАБЛОНЫ:
 ${templates}
 
-СТИЛИ:
+СТИЛИ (id — название):
 ${styles}
+
+ПОДБОРКИ ДИЗАЙНА (id — название, для кого, приём, из чего собрана):
+${looks}
+
+ШРИФТЫ (только эти названия):
+${fonts}
+
+ПАЛИТРЫ (только эти названия):
+${palettes}
 
 ТЕКУЩИЙ ДОКУМЕНТ (JSON):
 ${JSON.stringify(doc)}`;
@@ -297,7 +318,7 @@ export async function askAi(
           })),
           { role: 'user', parts: [{ text }] },
         ],
-        generationConfig: { temperature: 0.5, maxOutputTokens: 4096 },
+        generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
       }),
     });
     const bodyText = await res.text();
@@ -329,7 +350,7 @@ export async function askAi(
         ...trimmedHistory,
         { role: 'user', content: text },
       ],
-      temperature: config.provider === 'pollinations' ? 0.4 : 0.5,
+      temperature: config.provider === 'pollinations' ? 0.25 : 0.2,
       max_tokens: 4096,
     };
     if (config.provider !== 'pollinations') body.response_format = { type: 'json_object' };

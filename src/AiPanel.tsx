@@ -11,14 +11,16 @@ import {
   type ChatMessage,
 } from './ai';
 import type { SiteDoc } from './types';
+import { BLOCK_LABELS, LOOKBOOK, STYLE_PRESETS, TEMPLATES } from './templates';
+import { FONTS } from './fonts';
 
 type Entry = ChatMessage & { note?: string };
 
 const QUICK = [
-  'Сделай лендинг кофейни',
+  'Собери сайт как «Тёплая кофейня»',
+  'Сделай тёмный лендинг для агентства',
   'Добавь страницу «О нас» с командой',
-  'Сделай все блоки чуть уже и с фоном',
-  'Перепиши тексты первого экрана короче',
+  'Сделай блоки чуть уже и с фоном',
 ];
 
 export default function AiPanel({
@@ -200,8 +202,12 @@ export default function AiPanel({
             {messages.length === 0 && (
               <div className="ai-empty">
                 <p>
-                  Напишите, что сделать с сайтом. Помощник может добавлять блоки и страницы, править тексты,
-                  менять размеры, фон и тему — всё отменяется через Ctrl+Z.
+                  Напишите, что сделать с сайтом. Помощник берёт только конкретные блоки, шаблоны, стили и шрифты
+                  из библиотеки и применяет их к странице — всё отменяется через Ctrl+Z.
+                </p>
+                <p className="ai-library">
+                  Библиотека: блоков {Object.keys(BLOCK_LABELS).length} · шаблонов {TEMPLATES.length} · подборок{' '}
+                  {LOOKBOOK.length} · стилей {STYLE_PRESETS.length} · шрифтов {FONTS.length}
                 </p>
                 <div className="ai-quick">
                   {QUICK.map((q) => (

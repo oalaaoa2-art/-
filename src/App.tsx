@@ -3,6 +3,7 @@ import { buildHtml } from './render';
 import {
   BLOCK_LABELS,
   FONT_PAIRS,
+  LOOKBOOK,
   PALETTES,
   STORAGE_KEY,
   STYLE_PRESETS,
@@ -17,6 +18,7 @@ import {
 } from './templates';
 import { CATEGORY_LABELS, FONTS, loadAllFonts } from './fonts';
 import AiPanel from './AiPanel';
+import { kindLabel, searchLibrary, type SearchHit } from './search';
 import type { AiAction } from './ai';
 import type { Block, BlockBox, BlockType, Msg, Page, SiteDoc } from './types';
 
@@ -543,6 +545,7 @@ export default function App() {
   const [saved, setSaved] = useState(true);
   const [drawer, setDrawer] = useState<'rail' | 'insp' | null>(null);
   const [welcome, setWelcome] = useState(true);
+  const [query, setQuery] = useState('');
 
   const docRef = useRef(doc);
   docRef.current = doc;
@@ -551,6 +554,7 @@ export default function App() {
   const future = useRef<SiteDoc[]>([]);
   const dragFrom = useRef(-1);
   const pageDragFrom = useRef(-1);
+  const searchRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     loadAllFonts();
@@ -612,6 +616,7 @@ export default function App() {
 
   const blocks = pageOf(doc).blocks;
   const selectedBlock = blocks.find((b) => b.id === selected) ?? null;
+  const searchHits = useMemo(() => searchLibrary(query, doc), [query, doc]);
 
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
@@ -894,14 +899,54 @@ export default function App() {
           }
           case 'apply_style': {
             const style = STYLE_PRESETS.find((s) => s.id === action.id);
-            if (!style) break;
+            if (!style) {
+              log.push(`нет стиля «${String(action.id)}»`);
+              break;
+            }
             d.theme = { ...style.theme };
             log.push(`стиль «${style.name}»`);
             break;
           }
+          case 'apply_palette': {
+            const palette = PALETTES.find((p) => p.name === action.name);
+            if (!palette) {
+              log.push(`нет палитры «${String(action.name)}»`);
+              break;
+            }
+            d.theme = {
+              ...d.theme,
+              bg: palette.bg,
+              surface: palette.surface,
+              text: palette.text,
+              muted: palette.muted,
+              accent: palette.accent,
+              accentText: palette.accentText,
+            };
+            log.push(`палитра «${palette.name}»`);
+            break;
+          }
+          case 'set_fonts': {
+            const known = new Set(FONTS.map((f) => f.family));
+            const heading = typeof action.heading === 'string' && known.has(action.heading) ? action.heading : '';
+            const fontBody = typeof action.body === 'string' && known.has(action.body) ? action.body : '';
+            if (!heading && !fontBody) {
+              log.push('шрифт не из библиотеки');
+              break;
+            }
+            d.theme = {
+              ...d.theme,
+              ...(heading ? { fontHeading: heading } : {}),
+              ...(fontBody ? { fontBody } : {}),
+            };
+            log.push(`шрифты «${heading || d.theme.fontHeading} / ${fontBody || d.theme.fontBody}»`);
+            break;
+          }
           case 'apply_template': {
             const template = TEMPLATES.find((t) => t.id === action.id);
-            if (!template) break;
+            if (!template) {
+              log.push(`нет шаблона «${String(action.id)}»`);
+              break;
+            }
             const next = docFromTemplate(template);
             d.name = next.name;
             d.theme = next.theme;
@@ -911,16 +956,82 @@ export default function App() {
             log.push(`шаблон «${template.name}»`);
             break;
           }
+          case 'apply_look': {
+            const look = LOOKBOOK.find((l) => l.id === action.id);
+            const template = look ? TEMPLATES.find((t) => t.id === look.templateId) : null;
+            if (!look || !template) {
+              log.push(`нет подборки «${String(action.id)}»`);
+              break;
+            }
+            const style = STYLE_PRESETS.find((s) => s.id === look.styleId);
+            const next = docFromTemplate(template);
+            d.name = next.name;
+            d.theme = style ? { ...style.theme } : next.theme;
+            d.pages = next.pages;
+            d.current = next.current;
+            d.templateId = template.id;
+            log.push(`подборка «${look.name}»`);
+            break;
+          }
           default:
             break;
         }
       }
     });
     if (selectId) setSelected(selectId);
-    return log.slice(0, 6).join(' · ') || 'Готово';
+    return log.slice(0, 8).join(' · ') || 'Готово';
   };
 
   /* -------------------------------- project -------------------------------- */
+
+  const applyLook = (id: string) => {
+    const look = LOOKBOOK.find((l) => l.id === id);
+    if (!look) return;
+    const template = TEMPLATES.find((t) => t.id === look.templateId);
+    if (!template) return;
+    const style = STYLE_PRESETS.find((s) => s.id === look.styleId);
+    const dirty = docRef.current.pages.some((p) => p.blocks.length > 0);
+    if (dirty && !window.confirm(`Заменить сайт подборкой «${look.name}»? Текущие страницы и правки пропадут.`)) {
+      return;
+    }
+    const next = docFromTemplate(template);
+    if (style) next.theme = { ...style.theme };
+    past.current.push(clone(docRef.current));
+    future.current = [];
+    setCanUndo(true);
+    setCanRedo(false);
+    setDoc(next);
+    setSelected(null);
+    setRev((r) => r + 1);
+    setDrawer(null);
+    setQuery('');
+  };
+
+  const applyHit = (hit: SearchHit) => {
+    if (hit.kind === 'block') addBlock(hit.id as BlockType);
+    else if (hit.kind === 'template') {
+      const template = TEMPLATES.find((t) => t.id === hit.id);
+      if (template) useTemplate(template);
+    } else if (hit.kind === 'look') applyLook(hit.id);
+    else if (hit.kind === 'style') {
+      const style = STYLE_PRESETS.find((s) => s.id === hit.id);
+      if (style) apply((d) => { d.theme = { ...style.theme }; });
+    } else if (hit.kind === 'palette') {
+      const palette = PALETTES.find((p) => p.name === hit.id);
+      if (palette) {
+        patchTheme({
+          bg: palette.bg,
+          surface: palette.surface,
+          text: palette.text,
+          muted: palette.muted,
+          accent: palette.accent,
+          accentText: palette.accentText,
+        });
+      }
+    } else if (hit.kind === 'font') patchTheme({ fontHeading: hit.id });
+    else if (hit.kind === 'page') switchPage(hit.id);
+    setQuery('');
+  };
 
   const useTemplate = (t: Template) => {
     const dirty = docRef.current.pages.some((p) => p.blocks.length > 0);
@@ -1007,9 +1118,13 @@ export default function App() {
       } else if (mod && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         redo();
+      } else if (e.key === '/') {
+        e.preventDefault();
+        searchRef.current?.focus();
       } else if (e.key === 'Escape') {
         setWelcome(false);
         setDrawer(null);
+        setQuery('');
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && selected) {
         e.preventDefault();
         deleteBlock();
@@ -1104,6 +1219,24 @@ export default function App() {
 
       <div className="body">
         <aside className={`rail ${drawer === 'rail' ? 'open' : ''}`}>
+          <div className="rail-search">
+            <input
+              ref={searchRef}
+              value={query}
+              placeholder="Найти блок, шаблон, стиль, шрифт…  /"
+              aria-label="Поиск по библиотеке"
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && searchHits[0]) applyHit(searchHits[0]);
+                if (e.key === 'Escape') setQuery('');
+              }}
+            />
+            {query && (
+              <button className="mini" title="Очистить поиск" onClick={() => setQuery('')}>
+                ×
+              </button>
+            )}
+          </div>
           <div className="tabs">
             <button className={tab === 'templates' ? 'active' : ''} onClick={() => setTab('templates')}>
               Шаблоны
@@ -1126,11 +1259,56 @@ export default function App() {
           </div>
 
           <div className="panel">
+            {query.trim() ? (
+              <div className="search-results">
+                <p className="panel-lead">
+                  {searchHits.length > 0
+                    ? 'Найдено в библиотеке. Нажмите, чтобы применить.'
+                    : 'Ничего не нашлось. Попробуйте «кофейня», «цены», «тёмный», «минимализм» или «шрифт».'}
+                </p>
+                {searchHits.map((hit) => (
+                  <button key={`${hit.kind}-${hit.id}`} className="hit" onClick={() => applyHit(hit)}>
+                    <span className="hit-kind">{kindLabel(hit.kind)}</span>
+                    <span className="hit-body">
+                      <strong>{hit.title}</strong>
+                      <em>{hit.hint}</em>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <>
             {tab === 'templates' && (
               <>
                 <p className="panel-lead">
-                  Готовые сайты. Выберите шаблон — дальше правьте текст прямо на холсте и добавляйте страницы.
+                  Кураторская подборка: проверенные сочетания шаблона и стиля. Их же использует ИИ, когда просите
+                  «сделай красиво».
                 </p>
+                <div className="look-grid">
+                  {LOOKBOOK.map((look) => {
+                    const style = STYLE_PRESETS.find((s) => s.id === look.styleId);
+                    const theme = style?.theme;
+                    return (
+                      <button
+                        key={look.id}
+                        className="look"
+                        title={look.description}
+                        onClick={() => applyLook(look.id)}
+                      >
+                        <span className="look-preview" style={{ background: theme?.bg, color: theme?.text }}>
+                          <i style={{ background: theme?.accent }} />
+                          <em style={{ fontFamily: `'${theme?.fontHeading ?? 'Inter'}', serif` }}>Aa</em>
+                        </span>
+                        <span className="look-name">{look.name}</span>
+                        <span className="look-for">{look.bestFor}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="panel-head">
+                  <span>Все шаблоны</span>
+                  <span className="count">{TEMPLATES.length}</span>
+                </div>
                 <div className="tpl-grid">
                   {TEMPLATES.map((t) => (
                     <button
@@ -1433,6 +1611,8 @@ export default function App() {
                     onChange={(e) => patchTheme({ maxWidth: Number(e.target.value) })}
                   />
                 </label>
+              </>
+            )}
               </>
             )}
           </div>
