@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AI_PROVIDERS,
   askAi,
+  describeAction,
   loadAiConfig,
   providerById,
   saveAiConfig,
@@ -14,10 +15,15 @@ import type { SiteDoc } from './types';
 import { BLOCK_LABELS, LOOKBOOK, STYLE_PRESETS, TEMPLATES } from './templates';
 import { FONTS } from './fonts';
 
-type Entry = ChatMessage & { note?: string };
+type Entry = ChatMessage & {
+  plan?: string[];
+  actions?: AiAction[];
+  status?: 'pending' | 'applied' | 'skipped';
+  note?: string;
+};
 
 const QUICK = [
-  'Собери сайт как «Тёплая кофейня»',
+  'Хочу сайт для кофейни — предложи план',
   'Сделай тёмный лендинг для агентства',
   'Добавь страницу «О нас» с командой',
   'Сделай блоки чуть уже и с фоном',
@@ -59,7 +65,6 @@ export default function AiPanel({
       ...prev,
       provider: id,
       model: p.models[0],
-      apiKey: id === prev.provider ? prev.apiKey : prev.apiKey,
       baseUrl: id === 'custom' ? prev.baseUrl : '',
     }));
   };
@@ -71,21 +76,48 @@ export default function AiPanel({
     setInput('');
     const history: ChatMessage[] = messages
       .filter((m) => m.content)
-      .map((m) => ({ role: m.role, content: m.content }));
-    setMessages((prev) => [...prev, { role: 'user', content: prompt }]);
+      .map((m) => ({
+        role: m.role,
+        content:
+          m.plan && m.plan.length
+            ? `${m.content}\nПлан: ${m.plan.map((s, i) => `${i + 1}. ${s}`).join('; ')}`
+            : m.content,
+      }));
+    setMessages((prev) => [
+      ...prev.map((m) => (m.status === 'pending' ? { ...m, status: 'skipped' as const } : m)),
+      { role: 'user', content: prompt },
+    ]);
     setBusy(true);
     try {
       const result = await askAi(config, doc, history, prompt);
-      let note = '';
-      if (result.actions.length) note = onActions(result.actions);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: result.reply || (result.actions.length ? 'Готово — изменил сайт.' : 'Не понял задачу. Сформулируйте иначе.'),
-          note: note || undefined,
-        },
-      ]);
+      const actions = result.actions;
+      if (actions.length && !config.stepMode) {
+        const note = onActions(actions);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: result.reply || 'Готово — применил шаг.',
+            plan: result.plan,
+            actions,
+            status: 'applied',
+            note: note || undefined,
+          },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content:
+              result.reply ||
+              (actions.length ? 'Проверьте шаг и примените его.' : 'Не понял задачу. Сформулируйте иначе.'),
+            plan: result.plan,
+            actions,
+            status: actions.length ? 'pending' : undefined,
+          },
+        ]);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -93,12 +125,29 @@ export default function AiPanel({
     }
   };
 
+  const applyEntry = (index: number) => {
+    const entry = messages[index];
+    if (!entry?.actions?.length) return;
+    const note = onActions(entry.actions);
+    setMessages((prev) =>
+      prev.map((m, i) =>
+        i === index ? { ...m, status: 'applied', note: note || 'Готово' } : m
+      )
+    );
+  };
+
+  const skipEntry = (index: number) => {
+    setMessages((prev) =>
+      prev.map((m, i) => (i === index ? { ...m, status: 'skipped' } : m))
+    );
+  };
+
   return (
     <div className="ai-panel">
       <div className="ai-head">
         <div className="ai-title">
           <span className="ai-mark">✦</span>
-          <span>ИИ-помощник</span>
+          <span>ИИ-ассистент</span>
         </div>
         <button
           className="mini"
@@ -176,6 +225,14 @@ export default function AiPanel({
               </datalist>
             </label>
           )}
+          <label className="ai-check">
+            <input
+              type="checkbox"
+              checked={config.stepMode}
+              onChange={(e) => patch({ stepMode: e.target.checked })}
+            />
+            <span>Спрашивать перед каждым шагом</span>
+          </label>
           <button className="btn primary wide" onClick={() => setSetup(false)} disabled={!ready}>
             {ready ? 'Готово' : 'Введите ключ'}
           </button>
@@ -193,6 +250,13 @@ export default function AiPanel({
             <span className="ai-status-name">
               {provider.name} · {config.model}
             </span>
+            <button
+              className={`ai-mode ${config.stepMode ? 'on' : ''}`}
+              title="Ассистент предлагает шаг, а вы применяете его сами"
+              onClick={() => patch({ stepMode: !config.stepMode })}
+            >
+              {config.stepMode ? 'пошагово' : 'сразу всё'}
+            </button>
             <button className="mini" title="Сменить модель" onClick={() => setSetup(true)}>
               ⚙
             </button>
@@ -202,8 +266,8 @@ export default function AiPanel({
             {messages.length === 0 && (
               <div className="ai-empty">
                 <p>
-                  Напишите, что сделать с сайтом. Помощник берёт только конкретные блоки, шаблоны, стили и шрифты
-                  из библиотеки и применяет их к странице — всё отменяется через Ctrl+Z.
+                  Ассистент сначала предложит план и покажет один шаг с понятным описанием. Вы проверяете его и
+                  нажимаете «Применить шаг» — только тогда сайт изменится. Всё отменяется через Ctrl+Z.
                 </p>
                 <p className="ai-library">
                   Библиотека: блоков {Object.keys(BLOCK_LABELS).length} · шаблонов {TEMPLATES.length} · подборок{' '}
@@ -221,10 +285,55 @@ export default function AiPanel({
             {messages.map((m, i) => (
               <div key={i} className={`ai-msg ${m.role}`}>
                 <div className="ai-bubble">{m.content}</div>
-                {m.note && <span className="ai-note">Применено: {m.note}</span>}
+                {m.role === 'assistant' && m.plan && m.plan.length > 1 && (
+                  <ol className="ai-plan">
+                    {m.plan.map((step, j) => (
+                      <li key={j}>{step}</li>
+                    ))}
+                  </ol>
+                )}
+                {m.role === 'assistant' && !!m.actions?.length && (
+                  <div className={`ai-step ${m.status ?? 'pending'}`}>
+                    <div className="ai-step-head">
+                      {m.status === 'applied'
+                        ? 'Шаг применён'
+                        : m.status === 'skipped'
+                          ? 'Шаг пропущен'
+                          : 'Предлагаю шаг — проверьте'}
+                    </div>
+                    <ul className="ai-step-list">
+                      {m.actions.map((action, k) => (
+                        <li key={k}>{describeAction(action, doc)}</li>
+                      ))}
+                    </ul>
+                    {m.status === 'pending' || !m.status ? (
+                      <div className="ai-step-btns">
+                        <button className="btn primary sm" onClick={() => applyEntry(i)}>
+                          Применить шаг
+                        </button>
+                        <button className="btn ghost sm" onClick={() => skipEntry(i)}>
+                          Пропустить
+                        </button>
+                      </div>
+                    ) : m.status === 'applied' && i === messages.length - 1 ? (
+                      <button
+                        className="ai-continue"
+                        onClick={() => void send('Продолжай план — следующий шаг.')}
+                        disabled={busy}
+                      >
+                        Продолжить →
+                      </button>
+                    ) : null}
+                    {m.note && <span className="ai-note">Применено: {m.note}</span>}
+                  </div>
+                )}
               </div>
             ))}
-            {busy && <div className="ai-msg assistant"><div className="ai-bubble thinking">Думаю…</div></div>}
+            {busy && (
+              <div className="ai-msg assistant">
+                <div className="ai-bubble thinking">Думаю…</div>
+              </div>
+            )}
             {error && (
               <div className="ai-error">
                 <strong>Не получилось.</strong> {error}
@@ -236,7 +345,7 @@ export default function AiPanel({
             <textarea
               rows={2}
               value={input}
-              placeholder="Например: сделай шапку и первый экран для студии дизайна"
+              placeholder="Например: хочу сайт для кофейни — что предложишь?"
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
